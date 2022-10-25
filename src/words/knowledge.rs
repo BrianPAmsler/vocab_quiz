@@ -1,4 +1,4 @@
-use std::{time::SystemTime, io::{Write, Read}, mem::size_of, ops::Index};
+use std::{time::SystemTime, io::{Write, Read}, mem::size_of, ops::Index, rc::Rc};
 
 use const_format::concatcp;
 use serde::{Serialize, Deserialize};
@@ -18,8 +18,8 @@ struct WordKnowledge {
     reinforcement_level: u32
 }
 
-pub struct Knowledge<'k> {
-    dict: &'k Dictionary,
+pub struct Knowledge {
+    dict: Rc<Dictionary>,
     knowledge: Box<[WordKnowledge]>,
 }
 
@@ -30,9 +30,10 @@ struct KnowledgeData<'a> {
     knowledge: Box<[WordKnowledge]>,
 }
 
+type Test<'a, Q> = &'a Q;
 
-impl<'slf> Knowledge<'slf> {
-    pub fn create(dict: &Dictionary) -> Knowledge {
+impl Knowledge {
+    pub fn create(dict: Rc<Dictionary>) -> Knowledge {
         let mut knowledge = Vec::new();
         knowledge.reserve(dict.words.len());
 
@@ -45,7 +46,7 @@ impl<'slf> Knowledge<'slf> {
         Knowledge { dict, knowledge: knowledge.into_boxed_slice() }
     }
 
-    pub fn save_to<T: Write>(mut self, writable: &mut T) -> Result<Knowledge<'slf>, WordError> {
+    pub fn save_to<T: Write>(mut self, writable: &mut T) -> Result<Knowledge, WordError> {
         let data = KnowledgeData { header: KNOW_HEADER, dict_title: self.dict.title.clone(), knowledge: self.knowledge };
         
         let size_estimate = data.knowledge.len() * size_of::<Knowledge>() + size_of::<KnowledgeData>();
@@ -60,10 +61,10 @@ impl<'slf> Knowledge<'slf> {
         Ok(self)
     }
 
-    pub fn load_from<'a, T, I>(readable: &mut T, container: &I) -> Result<Knowledge<'a>, WordError>
+    pub fn load_from<'a, T, I>(readable: &mut T, container: &I) -> Result<Knowledge, WordError>
     where
         T: Read,
-        I: Index<String, Output = &'a Dictionary> {
+        I: Index<String, Output = Rc<Dictionary>> {
         let mut data = Vec::new();
         readable.read_to_end(&mut data)?;
 
@@ -72,9 +73,13 @@ impl<'slf> Knowledge<'slf> {
         if dict_data.header != KNOW_HEADER {
             return Err("Invalid File!")?;
         }
-    
-        let dict = container[dict_data.dict_title];
 
-        Ok(Knowledge { dict, knowledge: dict_data.knowledge })
+        let dict = container.index(dict_data.dict_title).clone();
+
+        Ok(Knowledge { dict: dict.clone(), knowledge: dict_data.knowledge })
+    }
+
+    pub fn get_dict(&self) -> Rc<Dictionary> {
+        self.dict.clone()
     }
 }

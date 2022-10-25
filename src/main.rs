@@ -1,12 +1,34 @@
 #![cfg_attr(debug_assertions, allow(dead_code))] 
 
-use std::fs::File;
+use std::{fs::File, collections::HashMap, rc::Rc, ops::Index};
 
 use crate::{words::{Dictionary, Knowledge}, xml::parse_xml_dictionary, constants::LINEAR_MULTIPLIER};
 
 mod words;
 mod xml;
 mod constants;
+
+struct DictMap {
+    map: HashMap<String, Rc<Dictionary>>
+}
+
+impl DictMap {
+    pub fn new() -> DictMap {
+        DictMap { map: HashMap::new() }
+    }
+
+    pub fn insert(&mut self, k: String, dict: Rc<Dictionary>) -> Option<Rc<Dictionary>> {
+        self.map.insert(k, dict)
+    }
+}
+
+impl Index<String> for DictMap {
+    type Output = Rc<Dictionary>;
+
+    fn index(&self, index: String) -> &Self::Output {
+        self.map.index(&index)
+    }
+}
 
 fn main() {
     println!("Reading xml file...");
@@ -29,7 +51,17 @@ fn main() {
     println!("First 5 words: {:?}", words);
     println!("Dictionary title: \"{}\"", jp_dict.get_title());
 
-    let k = Knowledge::create(&jp_dict);
+    let mut map = DictMap::new();
+    let jp_title = jp_dict.get_title().to_owned();
+    map.insert(jp_title.to_owned(), Rc::new(jp_dict));
+
+    let k = Knowledge::create(map[jp_title].clone());
     let mut f = File::create("misc/test.kw").unwrap();
-    let k = k.save_to(&mut f).unwrap();
+    k.save_to(&mut f).unwrap();
+
+    let mut f = File::open("misc/test.kw").unwrap();
+    let k = Knowledge::load_from(&mut f, &map).unwrap();
+
+    let d = k.get_dict();
+    println!("dict name: {}", d.get_title());
 }
