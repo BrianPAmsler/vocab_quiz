@@ -82,7 +82,7 @@ impl Dictionary {
         v.into_boxed_slice()
     }
 
-    pub fn save_to<T: Write>(self, mut writable: T) -> Result<(), WordError> {
+    pub fn save_to<T: Write>(self, writable: &mut T) -> Result<(), WordError> {
         let data = DictData { header: DICT_HEADER, name: self.title, words: self.words };
         
         let mut i = 1;
@@ -108,7 +108,7 @@ impl Dictionary {
         Ok(())
     }
 
-    pub fn load_from<'a, T: Read>(mut readable: T) -> Result<Dictionary, WordError> {
+    pub fn load_from<'a, T: Read>(readable: &mut T) -> Result<Dictionary, WordError> {
         let mut data = Vec::new();
         readable.read_to_end(&mut data)?;
 

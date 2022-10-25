@@ -1,4 +1,4 @@
-use std::{time::SystemTime, io::Write, mem::size_of};
+use std::{time::SystemTime, io::{Write, Read}, mem::size_of, ops::Index};
 
 use const_format::concatcp;
 use serde::{Serialize, Deserialize};
@@ -45,7 +45,7 @@ impl<'slf> Knowledge<'slf> {
         Knowledge { dict, knowledge: knowledge.into_boxed_slice() }
     }
 
-    pub fn save_to<T: Write>(mut self, mut writable: T) -> Result<Knowledge<'slf>, WordError> {
+    pub fn save_to<T: Write>(mut self, writable: &mut T) -> Result<Knowledge<'slf>, WordError> {
         let data = KnowledgeData { header: KNOW_HEADER, dict_title: self.dict.title.clone(), knowledge: self.knowledge };
         
         let size_estimate = data.knowledge.len() * size_of::<Knowledge>() + size_of::<KnowledgeData>();
@@ -58,6 +58,10 @@ impl<'slf> Knowledge<'slf> {
         
         self.knowledge = data.knowledge;
         Ok(self)
+    }
+
+    pub fn load_from<T: Read, I: Index<String>>(readable: &mut T, container: &I) {
+        
     }
 
     pub fn test(&self) -> String {
