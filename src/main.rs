@@ -14,14 +14,13 @@ fn main() {
     println!("Parsing xml...");
     let jp_dict = parse_xml_dictionary(wordfile, words::ObscurityMode::Linear(LINEAR_MULTIPLIER)).unwrap();
 
-    let f = File::create("misc/japanese.dct").unwrap();
+    let mut f = File::create("misc/japanese.dct").unwrap();
 
     println!("Saving jp_dict...");
-    jp_dict.save_to(f).unwrap();
+    jp_dict.save_to(&mut f).unwrap();
 
     println!("Loading jp_dict...");
-    let f = File::open("misc/japanese.dct").unwrap();
-    let jp_dict = Dictionary::load_from(f).unwrap();
+    let jp_dict = Dictionary::load_from(&mut f).unwrap();
 
     println!("Seraching words...");
     let words = jp_dict.get_words_leq_score(5);
@@ -30,8 +29,8 @@ fn main() {
     println!("Dictionary title: \"{}\"", jp_dict.get_title());
 
     let k = Knowledge::create(&jp_dict);
-    let f = File::create("misc/test.kw").unwrap();
-    let k = k.save_to(f).unwrap();
+    let mut f = File::create("misc/test.kw").unwrap();
+    let k = k.save_to(&mut f).unwrap();
 
     k.test();
 }
