@@ -26,7 +26,7 @@ pub struct Knowledge<'k> {
 #[derive(Serialize, Deserialize)]
 struct KnowledgeData<'a> {
     header: &'a str,
-    dict_name: String,
+    dict_title: String,
     knowledge: Box<[WordKnowledge]>,
 }
 
@@ -46,7 +46,7 @@ impl<'slf> Knowledge<'slf> {
     }
 
     pub fn save_to<T: Write>(mut self, mut writable: T) -> Result<Knowledge<'slf>, WordError> {
-        let data = KnowledgeData { header: KNOW_HEADER, dict_name: self.dict.title.clone(), knowledge: self.knowledge };
+        let data = KnowledgeData { header: KNOW_HEADER, dict_title: self.dict.title.clone(), knowledge: self.knowledge };
         
         let size_estimate = data.knowledge.len() * size_of::<Knowledge>() + size_of::<KnowledgeData>();
     
