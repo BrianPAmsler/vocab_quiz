@@ -4,7 +4,7 @@ use std::{fs::File, collections::HashMap, rc::Rc, ops::Index};
 
 use chrono::Utc;
 
-use crate::{words::{Dictionary, Knowledge, WordKnowledge}, xml::parse_xml_dictionary, constants::LINEAR_MULTIPLIER};
+use crate::{words::{Dictionary, Knowledge}};
 
 mod words;
 mod xml;
@@ -41,7 +41,7 @@ fn main() {
     dict_map.insert(jp_dict.clone());
 
     let mut kw_file = File::open("misc/test.kw").unwrap();
-    let mut kw = Knowledge::load_from(&mut kw_file, &dict_map).unwrap();
+    let kw = Knowledge::load_from(&mut kw_file, &dict_map).unwrap();
     drop(kw_file);
 
     let word = jp_dict.find_word("お金".to_owned()).unwrap();
