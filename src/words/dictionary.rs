@@ -1,24 +1,23 @@
-use std::{collections::{BTreeMap, HashSet}, cell::RefCell, mem::size_of, io::{Write, Read}};
+use std::{collections::{BTreeMap, HashSet, HashMap}, cell::RefCell, mem::size_of, io::{Write, Read}};
 
 use const_format::concatcp;
 use serde::{Serialize, Deserialize};
 
 use crate::constants::{VERSION, WORD_LENGTH_PADDING};
 
-use super::{WordID, Word, WordError};
+use super::{Word, WordError};
 
 const DICT_HEADER: &'static str = concatcp!("DICTINARYDATA_", VERSION);
 
-fn insert_obs(obscurity_index: &mut BTreeMap<u32, RefCell<HashSet<WordID>>>, id: WordID, obs: u32) {
-    let mut set = {
-        if !obscurity_index.contains_key(&obs) {
-            obscurity_index.insert(obs, RefCell::new(HashSet::new()));
-        }
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WordID {
+    id: usize
+}
 
-        obscurity_index[&obs].borrow_mut()
-    };
-
-    set.insert(id);
+impl WordID {
+    fn from(id: usize) -> Self {
+        WordID {id}
+    }
 }
 
 #[derive(Debug)]
@@ -35,19 +34,32 @@ struct DictData<'a> {
     words: Box<[Word]>,
 }
 
+fn insert_obs(obscurity_index: &mut BTreeMap<u32, RefCell<HashSet<WordID>>>, id: WordID, obs: u32) {
+    let mut set = {
+        if !obscurity_index.contains_key(&obs) {
+            obscurity_index.insert(obs, RefCell::new(HashSet::new()));
+        }
+
+        obscurity_index[&obs].borrow_mut()
+    };
+
+    set.insert(id);
+}
+
 #[derive(Debug)]
 pub struct Dictionary {
     pub(in super) title: String,
     pub(in super) words: Box<[Word]>,
-    pub(in super) obscurity_index: BTreeMap<u32, RefCell<HashSet<WordID>>>
+    pub(in super) obscurity_index: BTreeMap<u32, RefCell<HashSet<WordID>>>,
+    pub(in super) word_index: HashMap<String, WordID>
 }
 
 impl Dictionary {
     pub fn create(words: Box<[Word]>, name: String, mode: ObscurityMode) -> Dictionary {
 
-        let mut dct = Dictionary { words, title: name, obscurity_index: BTreeMap::new() };
+        let mut dct = Dictionary { words, title: name, obscurity_index: BTreeMap::new(), word_index: HashMap::new() };
         for (i, word) in dct.words.iter_mut().enumerate() {
-            let id = i as WordID;
+            let id = WordID::from(i);
 
             let obs = match mode {
                 ObscurityMode::Exponential(base) => base.powi(i as i32) as u32,
@@ -58,6 +70,7 @@ impl Dictionary {
             word.obscurity = obs;
 
             insert_obs(&mut dct.obscurity_index, id, obs);
+            dct.word_index.insert(word.text.to_owned(), id);
         }
 
         dct
@@ -75,11 +88,33 @@ impl Dictionary {
         for (_, cell) in stuff {
             let set = cell.borrow_mut();
             for thing in set.iter() {
-                v.push(self.words[*thing].clone());
+                v.push(self.words[thing.id].clone());
             }
         }
 
         v.into_boxed_slice()
+    }
+
+    pub fn find_word(&self, word: String) -> Option<WordID> {
+        match self.word_index.get(&word) {
+            Some(id) => Some(*id),
+            None => None
+        }
+    }
+
+    pub fn get_word_from_id(&self, id: WordID) -> &Word {
+        &self.words[id.id]
+    }
+
+    pub fn get_word_ids(&self) -> Box<[WordID]> {
+        let mut ids = Vec::new();
+        ids.reserve(self.words.len());
+
+        for (i, _) in self.words.iter().enumerate() {
+            ids.push(WordID::from(i));
+        }
+
+        ids.into_boxed_slice()
     }
 
     pub fn save_to<T: Write>(self, writable: &mut T) -> Result<(), WordError> {

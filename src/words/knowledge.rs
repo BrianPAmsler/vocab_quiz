@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::constants::VERSION;
 
-use super::{WordID, Dictionary, WordError};
+use super::{WordID, Dictionary, WordError, Word};
 
 const KNOW_HEADER: &'static str = concatcp!("KNOWLEDGEDATA_", VERSION);
 
@@ -30,15 +30,13 @@ struct KnowledgeData<'a> {
     knowledge: Box<[WordKnowledge]>,
 }
 
-type Test<'a, Q> = &'a Q;
-
 impl Knowledge {
     pub fn create(dict: Rc<Dictionary>) -> Knowledge {
         let mut knowledge = Vec::new();
         knowledge.reserve(dict.words.len());
 
-        for (i, _) in dict.words.iter().enumerate() {
-            let k = WordKnowledge { word_id: i, last_practice: None, confidence_score: 0, last_award: 0, reinforcement_level: 0 };
+        for id in dict.get_word_ids().as_ref() {
+            let k = WordKnowledge { word_id: *id, last_practice: None, confidence_score: 0, last_award: 0, reinforcement_level: 0 };
 
             knowledge.push(k);
         }
@@ -77,6 +75,17 @@ impl Knowledge {
         let dict = container.index(dict_data.dict_title).clone();
 
         Ok(Knowledge { dict: dict.clone(), knowledge: dict_data.knowledge })
+    }
+
+    pub fn practice(&mut self, word: String) -> Result<(), WordError> {
+        let word = match self.dict.find_word(word) {
+            Some(w) => w,
+            None => return Err("Word not found in dictionary.")?
+        };
+
+
+
+        Ok(())
     }
 
     pub fn get_dict(&self) -> Rc<Dictionary> {

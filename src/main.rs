@@ -17,8 +17,8 @@ impl DictMap {
         DictMap { map: HashMap::new() }
     }
 
-    pub fn insert(&mut self, k: String, dict: Rc<Dictionary>) -> Option<Rc<Dictionary>> {
-        self.map.insert(k, dict)
+    pub fn insert(&mut self, dict: Rc<Dictionary>) -> Option<Rc<Dictionary>> {
+        self.map.insert(dict.get_title().to_owned(), dict)
     }
 }
 
@@ -31,37 +31,14 @@ impl Index<String> for DictMap {
 }
 
 fn main() {
-    println!("Reading xml file...");
-    let wordfile = File::open("misc/japanese.xml").unwrap();
-    println!("Parsing xml...");
-    let jp_dict = parse_xml_dictionary(wordfile, words::ObscurityMode::Linear(LINEAR_MULTIPLIER)).unwrap();
+    let mut jp_file = File::open("misc/japanese.dct").unwrap();
+    let jp_dict = Rc::new(Dictionary::load_from(&mut jp_file).unwrap());
 
-    let mut f = File::create("misc/japanese.dct").unwrap();
+    let mut dict_map = DictMap::new();
+    dict_map.insert(jp_dict);
 
-    println!("Saving jp_dict...");
-    jp_dict.save_to(&mut f).unwrap();
+    let mut kw_file = File::open("misc/test.kw").unwrap();
+    let kw = Knowledge::load_from(&mut kw_file, &dict_map).unwrap();
 
-    println!("Loading jp_dict...");
-    let mut f = File::open("misc/japanese.dct").unwrap();
-    let jp_dict = Dictionary::load_from(&mut f).unwrap();
-
-    println!("Seraching words...");
-    let words = jp_dict.get_words_leq_score(5);
-
-    println!("First 5 words: {:?}", words);
-    println!("Dictionary title: \"{}\"", jp_dict.get_title());
-
-    let mut map = DictMap::new();
-    let jp_title = jp_dict.get_title().to_owned();
-    map.insert(jp_title.to_owned(), Rc::new(jp_dict));
-
-    let k = Knowledge::create(map[jp_title].clone());
-    let mut f = File::create("misc/test.kw").unwrap();
-    k.save_to(&mut f).unwrap();
-
-    let mut f = File::open("misc/test.kw").unwrap();
-    let k = Knowledge::load_from(&mut f, &map).unwrap();
-
-    let d = k.get_dict();
-    println!("dict name: {}", d.get_title());
+    println!("{}", kw.get_dict().get_title()); 
 }

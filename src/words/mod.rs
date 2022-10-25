@@ -9,5 +9,3 @@ pub use word::*;
 pub use knowledge::*;
 
 const MAX_AWARD: u32 = 50;
-
-type WordID = usize;
