@@ -1,22 +1,37 @@
-use crate::words::{Word, Dictionary};
+#![cfg_attr(debug_assertions, allow(dead_code))] 
+
+use std::fs::File;
+
+use crate::{words::{Dictionary, Knowledge}, xml::parse_xml_dictionary, constants::LINEAR_MULTIPLIER};
 
 mod words;
+mod xml;
+mod constants;
 
 fn main() {
-    let test = ["a", "asdf","b", "c", "e", "f", "g"];
+    println!("Reading xml file...");
+    let wordfile = File::open("misc/japanese.xml").unwrap();
+    println!("Parsing xml...");
+    let jp_dict = parse_xml_dictionary(wordfile, words::ObscurityMode::Linear(LINEAR_MULTIPLIER)).unwrap();
 
-    let mut words = Vec::new();
-    words.reserve(test.len());
+    let f = File::create("japanese.dct").unwrap();
 
-    for w in test {
-        let word = Word { text: w.to_string(), definition: "".to_string(), pronunciation: None, obscurity: ((w.chars().nth(0).unwrap() as u32) - ('a' as u32) + 1) };
+    println!("Saving jp_dict...");
+    jp_dict.save_to(f).unwrap();
 
-        words.push(word);
-    }
+    println!("Loading jp_dict...");
+    let f = File::open("japanese.dct").unwrap();
+    let jp_dict = Dictionary::load_from(f).unwrap();
 
-    let dict = Dictionary::create(words.into_boxed_slice(), words::ObscurityMode::Manual);
-    println!("dict: {:?}", dict);
+    println!("Seraching words...");
+    let words = jp_dict.get_words_leq_score(5);
 
-    let words = dict.get_words_leq_score(400);
-    print!("words: {:?}", words);
+    println!("First 5 words: {:?}", words);
+    println!("Dictionary title: \"{}\"", jp_dict.get_title());
+
+    let k = Knowledge::create(&jp_dict);
+    let f = File::create("test.kw").unwrap();
+    let k = k.save_to(f).unwrap();
+
+    k.test();
 }
