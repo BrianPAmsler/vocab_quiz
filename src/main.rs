@@ -20,6 +20,7 @@ fn main() {
     jp_dict.save_to(&mut f).unwrap();
 
     println!("Loading jp_dict...");
+    let mut f = File::open("misc/japanese.dct").unwrap();
     let jp_dict = Dictionary::load_from(&mut f).unwrap();
 
     println!("Seraching words...");
