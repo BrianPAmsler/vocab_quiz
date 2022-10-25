@@ -20,6 +20,12 @@ impl WordID {
     }
 }
 
+impl Into<usize> for WordID {
+    fn into(self) -> usize {
+        self.id
+    }
+}
+
 #[derive(Debug)]
 pub enum ObscurityMode {
     Exponential(f64),
