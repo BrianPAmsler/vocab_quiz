@@ -60,11 +60,21 @@ impl<'slf> Knowledge<'slf> {
         Ok(self)
     }
 
-    pub fn load_from<T: Read, I: Index<String>>(readable: &mut T, container: &I) {
-        
-    }
+    pub fn load_from<'a, T, I>(readable: &mut T, container: &I) -> Result<Knowledge<'a>, WordError>
+    where
+        T: Read,
+        I: Index<String, Output = &'a Dictionary> {
+        let mut data = Vec::new();
+        readable.read_to_end(&mut data)?;
 
-    pub fn test(&self) -> String {
-        "test".to_owned()
+        let dict_data: KnowledgeData = postcard::from_bytes(&data)?;
+
+        if dict_data.header != KNOW_HEADER {
+            return Err("Invalid File!")?;
+        }
+    
+        let dict = container[dict_data.dict_title];
+
+        Ok(Knowledge { dict, knowledge: dict_data.knowledge })
     }
 }

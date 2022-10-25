@@ -32,6 +32,4 @@ fn main() {
     let k = Knowledge::create(&jp_dict);
     let mut f = File::create("misc/test.kw").unwrap();
     let k = k.save_to(&mut f).unwrap();
-
-    k.test();
 }
