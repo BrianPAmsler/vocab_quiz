@@ -11,5 +11,6 @@ const_format = "0.2.30"
 heapless = "0.7.16"
 postcard = "1.0.2"
 quick-xml = "0.26.0"
+rand = "0.8.5"
 serde = { version = "1.0.145", features = ["derive"] }
 xmltree = "0.10.3"

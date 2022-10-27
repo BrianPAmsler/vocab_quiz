@@ -1,5 +1,7 @@
 #![cfg_attr(debug_assertions, allow(dead_code))] 
 
+use tools::DictMap;
+
 use crate::program::User;
 use std::{fs::File, collections::HashMap, rc::Rc, ops::Index};
 

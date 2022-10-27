@@ -108,6 +108,14 @@ impl Dictionary {
         }
     }
 
+    fn get_id_from_index(&self, index: usize) -> Option<WordID> {
+        if index >= self.words.len() {
+            return None;
+        }
+
+        Some(WordID { id: index })
+    }
+
     pub fn get_word_from_id(&self, id: WordID) -> &Word {
         &self.words[id.id]
     }

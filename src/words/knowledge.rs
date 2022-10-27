@@ -2,6 +2,7 @@ use std::{io::{Write, Read}, mem::size_of, ops::Index, rc::Rc};
 
 use chrono::{DateTime, Utc, NaiveDateTime};
 use const_format::concatcp;
+use rand::{RngCore, Rng};
 use serde::{Serialize, Deserialize, de::Visitor};
 
 use crate::constants::VERSION;
@@ -80,7 +81,7 @@ pub struct Knowledge {
 struct KnowledgeData<'a> {
     header: &'a str,
     dict_title: String,
-    knowledge: Box<[WordKnowledge]>,
+    knowledge_data: Box<[u8]>,
 }
 
 impl Knowledge {
@@ -97,19 +98,33 @@ impl Knowledge {
         Knowledge { dict, knowledge: knowledge.into_boxed_slice() }
     }
 
-    pub fn save_to<T: Write>(mut self, writable: &mut T) -> Result<Knowledge, WordError> {
-        let data = KnowledgeData { header: KNOW_HEADER, dict_title: self.dict.title.clone(), knowledge: self.knowledge };
+    pub fn estimate_serialized_size(&self) -> usize {
+        self.knowledge.len() * size_of::<WordKnowledge>() + size_of::<KnowledgeData>()
+    }
+
+    pub fn save_to<T: Write>(&self, writable: &mut T) -> Result<usize, WordError> {
+        let size_estimate =  self.estimate_serialized_size();
+        let mut kw_data = vec![0u8; size_estimate];
+        let kw_size = postcard::to_slice(&self.knowledge, &mut kw_data)?.len();
+        kw_data.truncate(kw_size);
+
+        let data = KnowledgeData { header: KNOW_HEADER, dict_title: self.dict.title.clone(), knowledge_data: kw_data.into_boxed_slice() };
         
-        let size_estimate = data.knowledge.len() * size_of::<Knowledge>() + size_of::<KnowledgeData>();
-    
         let mut alloc = vec![0u8; size_estimate];
         
         let out = postcard::to_slice(&data, &mut alloc)?;
         
-        writable.write(out)?;
-        
-        self.knowledge = data.knowledge;
-        Ok(self)
+        Ok(writable.write(out)?)
+    }
+
+    pub fn randomize(&mut self) {
+        let mut rng = rand::thread_rng();
+        for k in self.knowledge.as_mut() {
+            k.last_practice = Some(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(rng.gen::<u32>() as i64, 0), Utc).into());
+            k.confidence_score = rng.gen();
+            k.last_award = rng.gen();
+            k.reinforcement_level = rng.gen();
+        }
     }
 
     pub fn load_from<'a, T, I>(readable: &mut T, container: &I) -> Result<Knowledge, WordError>
@@ -119,15 +134,16 @@ impl Knowledge {
         let mut data = Vec::new();
         readable.read_to_end(&mut data)?;
 
-        let dict_data: KnowledgeData = postcard::from_bytes(&data)?;
+        let dict_data = postcard::from_bytes::<KnowledgeData>(&data)?;
 
         if dict_data.header != KNOW_HEADER {
             return Err("Invalid File!")?;
         }
 
         let dict = container.index(dict_data.dict_title).clone();
+        let knowledge = postcard::from_bytes(&dict_data.knowledge_data)?;
 
-        Ok(Knowledge { dict: dict.clone(), knowledge: dict_data.knowledge })
+        Ok(Knowledge { dict: dict.clone(), knowledge })
     }
 
     pub fn practice(&mut self, word: WordID, award: i32) {
