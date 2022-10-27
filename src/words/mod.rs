@@ -1,10 +1,8 @@
 mod dictionary;
-mod word_error;
 mod word;
 mod knowledge;
 
 pub use dictionary::*;
-pub use word_error::*;
 pub use word::*;
 pub use knowledge::*;
 

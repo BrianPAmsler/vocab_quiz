@@ -2,12 +2,12 @@ use std::{io::{Write, Read}, mem::size_of, ops::Index, rc::Rc};
 
 use chrono::{DateTime, Utc, NaiveDateTime};
 use const_format::concatcp;
-use rand::{RngCore, Rng};
+use rand::{Rng};
 use serde::{Serialize, Deserialize, de::Visitor};
 
-use crate::constants::VERSION;
+use crate::{constants::VERSION, error::Error};
 
-use super::{WordID, Dictionary, WordError};
+use super::{WordID, Dictionary};
 
 const KNOW_HEADER: &'static str = concatcp!("KNOWLEDGEDATA_", VERSION);
 
@@ -102,7 +102,7 @@ impl Knowledge {
         self.knowledge.len() * size_of::<WordKnowledge>() + size_of::<KnowledgeData>()
     }
 
-    pub fn save_to<T: Write>(&self, writable: &mut T) -> Result<usize, WordError> {
+    pub fn save_to<T: Write>(&self, writable: &mut T) -> Result<usize, Error> {
         let size_estimate =  self.estimate_serialized_size();
         let mut kw_data = vec![0u8; size_estimate];
         let kw_size = postcard::to_slice(&self.knowledge, &mut kw_data)?.len();
@@ -127,7 +127,7 @@ impl Knowledge {
         }
     }
 
-    pub fn load_from<'a, T, I>(readable: &mut T, container: &I) -> Result<Knowledge, WordError>
+    pub fn load_from<'a, T, I>(readable: &mut T, container: &I) -> Result<Knowledge, Error>
     where
         T: Read,
         I: Index<String, Output = Rc<Dictionary>> {

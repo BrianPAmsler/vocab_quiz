@@ -3,9 +3,9 @@ use std::{collections::{BTreeMap, HashSet, HashMap}, cell::RefCell, mem::size_of
 use const_format::concatcp;
 use serde::{Serialize, Deserialize};
 
-use crate::constants::{VERSION, WORD_LENGTH_PADDING};
+use crate::{constants::{VERSION, WORD_LENGTH_PADDING}, error::Error};
 
-use super::{Word, WordError};
+use super::{Word};
 
 const DICT_HEADER: &'static str = concatcp!("DICTINARYDATA_", VERSION);
 
@@ -131,7 +131,7 @@ impl Dictionary {
         ids.into_boxed_slice()
     }
 
-    pub fn save_to<T: Write>(self, writable: &mut T) -> Result<(), WordError> {
+    pub fn save_to<T: Write>(self, writable: &mut T) -> Result<(), Error> {
         let data = DictData { header: DICT_HEADER, name: self.title, words: self.words };
         
         let mut i = 1;
@@ -157,7 +157,7 @@ impl Dictionary {
         Ok(())
     }
 
-    pub fn load_from<'a, T: Read>(readable: &mut T) -> Result<Dictionary, WordError> {
+    pub fn load_from<'a, T: Read>(readable: &mut T) -> Result<Dictionary, Error> {
         let mut data = Vec::new();
         readable.read_to_end(&mut data)?;
 

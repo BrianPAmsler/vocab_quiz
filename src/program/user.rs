@@ -2,28 +2,7 @@ use std::{io::{Write, Read}, mem::size_of, rc::Rc, ops::Index};
 
 use serde::{Serialize, Deserialize};
 
-use crate::{words::{Knowledge, WordError, Dictionary}, tools::U8Buffer};
-
-#[derive(Debug)]
-pub struct UserError(pub String);
-
-impl From<postcard::Error> for UserError {
-    fn from(e: postcard::Error) -> Self {
-        UserError (e.to_string())
-    }
-}
-
-impl From<WordError> for UserError {
-    fn from(e: WordError) -> Self {
-        UserError (e.take_msg())
-    }
-}
-
-impl From<std::io::Error> for UserError {
-    fn from(e: std::io::Error) -> Self {
-        UserError(e.to_string())
-    }
-}
+use crate::{words::{Knowledge, Dictionary}, tools::U8Buffer, error::Error};
 
 pub struct User {
     name: String,
@@ -59,7 +38,7 @@ impl User {
         &self.name
     }
 
-    pub fn save_to<T: Write>(self, writable: &mut T) -> Result<Self, UserError> {
+    pub fn save_to<T: Write>(self, writable: &mut T) -> Result<Self, Error> {
         let data = UserData::create(&self)?;
 
         let size_estimate = size_of::<UserData>() + size_of::<u8>() * data.knowledge_data.len();
@@ -73,7 +52,7 @@ impl User {
         Ok(self)
     }
 
-    pub fn load_from<T: Read, I: Index<String, Output = Rc<Dictionary>>>(readable: &mut T, dict_container: &I) -> Result<Self, UserError> {
+    pub fn load_from<T: Read, I: Index<String, Output = Rc<Dictionary>>>(readable: &mut T, dict_container: &I) -> Result<Self, Error> {
         let mut bytes = Vec::new();
         readable.read_to_end(&mut bytes)?;
 
@@ -85,7 +64,7 @@ impl User {
     }
 }
 
-fn encode_knowledge_data(knowledge: &[Knowledge]) -> Result<Box<[u8]>, UserError> {
+fn encode_knowledge_data(knowledge: &[Knowledge]) -> Result<Box<[u8]>, Error> {
     let mut size_estimate = size_of::<usize>();
 
     for kw in knowledge {
@@ -117,7 +96,7 @@ fn encode_knowledge_data(knowledge: &[Knowledge]) -> Result<Box<[u8]>, UserError
     Ok(data.into_boxed_slice()) 
 }
 
-fn decode_knowledge_data<I: Index<String, Output = Rc<Dictionary>>>(data: &mut [u8], container: &I) -> Result<Box<[Knowledge]>, UserError> {
+fn decode_knowledge_data<I: Index<String, Output = Rc<Dictionary>>>(data: &mut [u8], container: &I) -> Result<Box<[Knowledge]>, Error> {
     let (count, used) = {let t = postcard::take_from_bytes::<usize>(data)?; (t.0, data.len() - t.1.len())};
     let data = &mut data[used..];
 
@@ -147,7 +126,7 @@ struct UserData {
 }
 
 impl UserData {
-    pub fn create(user: &User) -> Result<UserData, UserError> {
+    pub fn create(user: &User) -> Result<UserData, Error> {
         let name = user.name.to_owned();
         let knowledge_data = encode_knowledge_data(&user.knowledge)?;
 
