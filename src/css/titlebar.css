@@ -1,0 +1,27 @@
+.titlebar {
+    height: 30px;
+    background: rgb(61,61,61);
+    background: linear-gradient(1deg, rgba(61,61,61,1) 0%, rgba(81,81,81,1) 51%, rgba(121,121,121,1) 100%, rgba(0,212,255,1) 797979%);
+    user-select: none;
+    display: flex;
+    justify-content: flex-end;
+    position: fixed;
+    border-top-right-radius: 8px;
+    border-top-left-radius: 8px;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+  .titlebar-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 30px;
+    height: 30px;
+  }
+  .titlebar-button:hover {
+    background: #a8a8a8;
+  }
+  #titlebar-close {
+    border-top-right-radius: 8px;
+  }

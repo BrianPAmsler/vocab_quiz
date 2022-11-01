@@ -1,8 +1,8 @@
 use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, rc::Rc};
 
-use crate::{tools::DictMap, error::Error, words::Dictionary};
+use crate::{tools::DictMap, error::Error, words::{Dictionary, Word}};
 
-use super::{user::{User}, ProgressTracker, Progress};
+use super::{user::{User}, Progress};
 
 macro_rules! to_dir_path {
     ($path: expr) => {
@@ -34,7 +34,7 @@ impl Application {
         Ok(Application { user_dir , dict_dir, users, dicts })
     }
 
-    pub fn load(&mut self, mut tracker: Progress) -> Result<(), Error> {
+    pub fn load(&mut self, tracker: Option<Progress>) -> Result<(), Error> {
         // Count Dictionaries
         let mut dict_files = Vec::new();
         let mut dict_filesize = 0;
@@ -81,7 +81,10 @@ impl Application {
         let mut dict_progress = Progress::new(dict_filesize);
         let mut user_progress = Progress::new(user_filesize);
 
-        tracker.append(&[&dict_progress, &user_progress]);
+        match tracker {
+            Some(mut tracker) => tracker.append(&[&dict_progress, &user_progress]),
+            None => ()
+        }
 
         // Load Dictionaries
         let dict_prog = 1.0 / (dict_files.len() as f32);
@@ -106,5 +109,20 @@ impl Application {
         }
 
         Ok(())
+    }
+
+    pub fn test(&self) -> String {
+        for (k, _) in &self.dicts {
+            return k.to_owned();
+        }
+
+        "none".to_owned()
+    }
+
+    pub fn get_word(&self, dict: &str, word: &str) -> Option<Word> {
+        let dict = &self.dicts[dict.to_owned()];
+        let id = dict.find_word(word.to_owned())?;
+
+        Some(dict.get_word_from_id(id).clone())
     }
 }

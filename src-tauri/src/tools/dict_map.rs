@@ -37,3 +37,21 @@ impl<'a> Index<&'a str> for DictMap {
         self.map.index(&index.to_owned())
     }
 }
+
+impl IntoIterator for DictMap {
+    type IntoIter = <HashMap::<String, Rc<Dictionary>> as IntoIterator>::IntoIter;
+    type Item = <HashMap::<String, Rc<Dictionary>> as IntoIterator>::Item;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.map.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a DictMap {
+    type IntoIter = <&'a HashMap::<String, Rc<Dictionary>> as IntoIterator>::IntoIter;
+    type Item = <&'a HashMap::<String, Rc<Dictionary>> as IntoIterator>::Item;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.map.iter()
+    }
+}
