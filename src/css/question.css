@@ -1,0 +1,22 @@
+#word {
+    margin-top: 15vh;
+    font-size: 10vh;
+    background-color: #332288;
+    width: fit-content;
+    line-height: 10vh;
+    padding: 15px;
+    border-radius: 5vh;
+}
+
+#info {
+    font-size: min(10vw, 4vh);
+    line-height: 1.2;
+    justify-content: space-evenly;
+}
+
+#yesno{
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+}

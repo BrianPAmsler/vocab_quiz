@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, ops::Index};
+use std::{collections::{HashMap, hash_map::{Values, Keys}}, rc::Rc, ops::Index};
 
 use crate::words::Dictionary;
 
@@ -13,6 +13,14 @@ impl DictMap {
 
     pub fn insert(&mut self, dict: Rc<Dictionary>) -> Option<Rc<Dictionary>> {
         self.map.insert(dict.get_title().to_owned(), dict)
+    }
+
+    pub fn values<'a>(&'a self) -> Values<'a, String, Rc<Dictionary>> {
+        self.map.values()
+    }
+    
+    pub fn keys<'a>(&'a self) -> Keys<'a, String, Rc<Dictionary>> {
+        self.map.keys()
     }
 }
 

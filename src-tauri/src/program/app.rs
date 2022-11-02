@@ -1,6 +1,9 @@
 use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, rc::Rc};
 
-use crate::{tools::DictMap, error::Error, words::{Dictionary, Word}};
+use rand::Rng;
+use serde::{Serialize, Deserialize};
+
+use crate::{tools::DictMap, error::Error, words::{Dictionary, Word, WordID}};
 
 use super::{user::{User}, Progress};
 
@@ -17,11 +20,27 @@ macro_rules! to_dir_path {
     };
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct DictID {
+    name: String
+}
+
+impl DictID {
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
+    }
+}
+
+pub struct UserID;
+
 pub struct Application {
     user_dir: PathBuf,
     dict_dir: PathBuf,
     users: Vec<User>,
-    dicts: DictMap
+    dicts: DictMap,
+    current_dict: Option<DictID>,
+    current_user: Option<UserID>,
+    current_word: Option<WordID>
 }
 
 impl Application {
@@ -31,7 +50,7 @@ impl Application {
         let users = Vec::new();
         let dicts = DictMap::new();
 
-        Ok(Application { user_dir , dict_dir, users, dicts })
+        Ok(Application { user_dir , dict_dir, users, dicts, current_dict: None, current_user: None, current_word: None })
     }
 
     pub fn load(&mut self, tracker: Option<Progress>) -> Result<(), Error> {
@@ -111,18 +130,33 @@ impl Application {
         Ok(())
     }
 
-    pub fn test(&self) -> String {
+    pub fn get_dict_list(&self) -> Box<[DictID]> {
+        let mut list = Vec::new();
+
         for (k, _) in &self.dicts {
-            return k.to_owned();
+            list.push(DictID { name: k.to_owned() });
         }
 
-        "none".to_owned()
+        list.into_boxed_slice()
     }
 
-    pub fn get_word(&self, dict: &str, word: &str) -> Option<Word> {
-        let dict = &self.dicts[dict.to_owned()];
-        let id = dict.find_word(word.to_owned())?;
+    pub fn set_dict(&mut self, dict: DictID) {
+        self.current_dict = Some(dict);
+    }
 
-        Some(dict.get_word_from_id(id).clone())
+    pub fn pick_next_word(&mut self) {
+        let dict = self.dicts[self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
+        let ids = dict.get_word_ids();
+        
+        let mut rng = rand::thread_rng();
+        let t = rng.gen_range(0..ids.len());
+
+        self.current_word = Some(ids[t]);
+    }
+
+    pub fn get_current_word(&self) -> Option<Word> {
+        let dict = self.dicts[self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
+
+        Some(dict.get_word_from_id(self.current_word?).clone())
     }
 }

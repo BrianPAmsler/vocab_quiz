@@ -11,10 +11,10 @@ mod program;
 mod tools;
 mod error;
 
-use std::fs::create_dir_all;
+use std::{fs::create_dir_all};
 
-use program::Application;
-use tauri::Manager;
+use program::{Application, DictID};
+use tauri::{Manager};
 use words::Word;
 
 static mut APP: Option<Application> = None;
@@ -31,24 +31,36 @@ fn get_app_mut() -> &'static mut Application {
 
 fn init_app(app: Application) {
     // This is only unsafe if used by multiple threads (WHICH SHOULD'NT EVER HAPPEN ANYWAY)
-    unsafe {APP = Some(app);}
+    unsafe {APP = Some(app)};
 }
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
-fn greet(name: &str) -> String {
+fn get_dict_list<'a>() -> Box<[DictID]> {
     let app = get_app();
-    let dict = app.test();
-
-    format!("Hello, {}! You've been greeted from Rust!\r\nDictionary Title: {}", name, dict)
+    
+    app.get_dict_list()
 }
 
 #[tauri::command]
-fn get_word(word: &str) -> Option<Word> {
-    let app = get_app();
-    let dict = app.test();
+fn set_dict(dict: DictID) {
+    let app = get_app_mut();
 
-    app.get_word(&dict, word)
+    app.set_dict(dict);
+}
+
+#[tauri::command]
+fn pick_next_word() {
+    let app = get_app_mut();
+
+    app.pick_next_word();
+}
+
+#[tauri::command]
+fn get_current_word() -> Option<Word> {
+    let app = get_app_mut();
+
+    app.get_current_word()
 }
 
 const USER_PATH: &'static str = "test/users";
@@ -63,7 +75,7 @@ fn main() {
     init_app(app);
 
     tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![get_word, greet])
+    .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word])
         .setup(|app| {
             let main_window = app.get_window("main").unwrap();
             main_window.set_decorations(false).unwrap();

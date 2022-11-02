@@ -2,24 +2,7 @@
   color: #00000000;
   background-color: #00000000;
   background: transparent;
-}
-
-#bg {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 24px;
-  font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
-
-  border-radius: 8px;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  -webkit-text-size-adjust: 100%;
+  user-select: none;
 }
 
 div {
@@ -35,12 +18,40 @@ body {
   color: #00000000;
 }
 
-.container {
+.centered {
   height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  text-align: center;
+}
+.container {
+  height: 100%;
+  width: fit-content;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  text-align: center;
+}
+
+.top-bar {
+  margin-top: 30px;
+  height: fit-content;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  text-align: center;
+}
+
+.bottom-bar {
+  margin-top: 5vh;
+  margin-bottom: 5vh;
+  height: fit-content;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
   text-align: center;
 }
 
@@ -102,14 +113,11 @@ input:focus {
   filter: drop-shadow(0 0 2em #000000);
 }
 
-button {
-  cursor: pointer;
-}
-
 button:hover,
 input[type="submit"]:hover {
+  cursor: pointer;
   border-color: #396cd8;
-  filter: drop-shadow(0 0 2em #000000);
+  filter: drop-shadow(0 0 2em #ffffff);
 }
 
 input,
@@ -119,6 +127,27 @@ button {
 
 #greet-input {
   margin-right: 5px;
+}
+
+#bg {
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+
+  color: #0f0f0f;
+  background-color: #f6f6f6;
+
+  border-radius: 8px;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  
+  height: 100vh;
+  width: 100vw;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -136,4 +165,39 @@ button {
     color: #ffffff;
     background-color: #0f0f0f98;
   }
+  
+  button:hover,
+  input[type="submit"]:hover {
+    filter: drop-shadow(0 0 2em #000000);
+  }
+}
+
+button.scaled-button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  height: min(12.5vw, 125px);
+  width: min(45vw, 450px);
+  font-size: min(5vw, 50px);
+  font-weight: 500;
+  font-family: inherit;
+  color: #f6f6f6;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+  transition: border-color 0.25s, filter 0.75s;
+}
+
+button.yes {
+  background-color: #44AA99;
+}
+
+button.yes:hover {
+  filter: drop-shadow(0 0 2em #44AA99);
+}
+
+button.no {
+  background-color: #CC6677;
+}
+
+button.no:hover {
+  filter: drop-shadow(0 0 2em #CC6677);
 }

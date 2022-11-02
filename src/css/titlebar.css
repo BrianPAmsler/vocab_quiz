@@ -1,7 +1,7 @@
 .titlebar {
     height: 30px;
-    background: rgb(61,61,61);
-    background: linear-gradient(1deg, rgba(61,61,61,1) 0%, rgba(81,81,81,1) 51%, rgba(121,121,121,1) 100%, rgba(0,212,255,1) 797979%);
+    background: rgb(218,218,218);
+    background: linear-gradient(181deg, rgba(218,218,218,1) 0%, rgba(185,185,185,1) 51%, rgba(121,121,121,1) 100%, rgba(0,212,255,1) 797979%);
     user-select: none;
     display: flex;
     justify-content: flex-end;
@@ -20,8 +20,19 @@
     height: 30px;
   }
   .titlebar-button:hover {
-    background: #a8a8a8;
+    background: #707070;
   }
   #titlebar-close {
     border-top-right-radius: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .titlebar {
+      background: rgb(61,61,61);
+      background: linear-gradient(1deg, rgba(61,61,61,1) 0%, rgba(81,81,81,1) 51%, rgba(121,121,121,1) 100%, rgba(0,212,255,1) 797979%);
+    }
+    
+    .titlebar-button:hover {
+      background: #a8a8a8;
+    }
   }

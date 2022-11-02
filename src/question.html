@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/titlebar.css" />
+    <link rel="stylesheet" href="css/question.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tauri App</title>
+    <script type="module" src="js/main.js" defer></script>
+    <script type="module" src="js/titlebar.js" defer></script>
+    <script type="module" src="js/question.js" defer></script>
+    <style>
+      .logo.vanilla:hover {
+        filter: drop-shadow(0 0 2em #ffe21c);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="bg">
+        <div class="centered">
+            <div class="container">
+                <div class="top-bar">
+                    <h1 id="word">Word</h1>
+                </div>
+    
+                <div id="info" class="centered">
+                    <div id="pronunciation" style="display: none;"></div>
+                    <div id="definition" style="display: none;"></div>
+                </div>
+        
+                <div class="bottom-bar">
+                    <div id="check">
+                        <button class="scaled-button"onclick="check()">Check</button>
+                    </div>
+                    <div id="yesno" style="display: none; width: 100vw;">
+                        <button class="scaled-button yes" onclick="yes()">Correct</button>
+                        <button class="scaled-button no" onclick="no()">Incorrect</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  </body>
+</html>
