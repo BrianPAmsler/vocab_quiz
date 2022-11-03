@@ -1,9 +1,9 @@
-use std::{collections::{HashMap, hash_map::{Values, Keys}}, rc::Rc, ops::Index};
+use std::{collections::{HashMap, hash_map::{Values, Keys}}, ops::Index, sync::Arc};
 
 use crate::words::Dictionary;
 
 pub struct DictMap {
-    map: HashMap<String, Rc<Dictionary>>
+    map: HashMap<String, Arc<Dictionary>>
 }
 
 impl DictMap {
@@ -11,15 +11,15 @@ impl DictMap {
         DictMap { map: HashMap::new() }
     }
 
-    pub fn insert(&mut self, dict: Rc<Dictionary>) -> Option<Rc<Dictionary>> {
+    pub fn insert(&mut self, dict: Arc<Dictionary>) -> Option<Arc<Dictionary>> {
         self.map.insert(dict.get_title().to_owned(), dict)
     }
 
-    pub fn values<'a>(&'a self) -> Values<'a, String, Rc<Dictionary>> {
+    pub fn values<'a>(&'a self) -> Values<'a, String, Arc<Dictionary>> {
         self.map.values()
     }
     
-    pub fn keys<'a>(&'a self) -> Keys<'a, String, Rc<Dictionary>> {
+    pub fn keys<'a>(&'a self) -> Keys<'a, String, Arc<Dictionary>> {
         self.map.keys()
     }
 }
@@ -31,7 +31,7 @@ impl Default for DictMap {
 }
 
 impl Index<String> for DictMap {
-    type Output = Rc<Dictionary>;
+    type Output = Arc<Dictionary>;
 
     fn index(&self, index: String) -> &Self::Output {
         self.map.index(&index)
@@ -39,7 +39,7 @@ impl Index<String> for DictMap {
 }
 
 impl<'a> Index<&'a str> for DictMap {
-    type Output = Rc<Dictionary>;
+    type Output = Arc<Dictionary>;
 
     fn index(&self, index: &'a str) -> &Self::Output {
         self.map.index(&index.to_owned())
@@ -47,8 +47,8 @@ impl<'a> Index<&'a str> for DictMap {
 }
 
 impl IntoIterator for DictMap {
-    type IntoIter = <HashMap::<String, Rc<Dictionary>> as IntoIterator>::IntoIter;
-    type Item = <HashMap::<String, Rc<Dictionary>> as IntoIterator>::Item;
+    type IntoIter = <HashMap::<String, Arc<Dictionary>> as IntoIterator>::IntoIter;
+    type Item = <HashMap::<String, Arc<Dictionary>> as IntoIterator>::Item;
 
     fn into_iter(self) -> Self::IntoIter {
         self.map.into_iter()
@@ -56,8 +56,8 @@ impl IntoIterator for DictMap {
 }
 
 impl<'a> IntoIterator for &'a DictMap {
-    type IntoIter = <&'a HashMap::<String, Rc<Dictionary>> as IntoIterator>::IntoIter;
-    type Item = <&'a HashMap::<String, Rc<Dictionary>> as IntoIterator>::Item;
+    type IntoIter = <&'a HashMap::<String, Arc<Dictionary>> as IntoIterator>::IntoIter;
+    type Item = <&'a HashMap::<String, Arc<Dictionary>> as IntoIterator>::Item;
 
     fn into_iter(self) -> Self::IntoIter {
         self.map.iter()

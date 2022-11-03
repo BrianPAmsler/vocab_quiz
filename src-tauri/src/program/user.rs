@@ -1,4 +1,4 @@
-use std::{io::{Write, Read}, mem::size_of, rc::Rc, ops::Index};
+use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
 
 use serde::{Serialize, Deserialize};
 
@@ -52,7 +52,7 @@ impl User {
         Ok(self)
     }
 
-    pub fn load_from<T: Read, I: Index<String, Output = Rc<Dictionary>>>(readable: &mut T, dict_container: &I) -> Result<Self, Error> {
+    pub fn load_from<T: Read, I: Index<String, Output = Arc<Dictionary>>>(readable: &mut T, dict_container: &I) -> Result<Self, Error> {
         let mut bytes = Vec::new();
         readable.read_to_end(&mut bytes)?;
 
@@ -96,7 +96,7 @@ fn encode_knowledge_data(knowledge: &[Knowledge]) -> Result<Box<[u8]>, Error> {
     Ok(data.into_boxed_slice()) 
 }
 
-fn decode_knowledge_data<I: Index<String, Output = Rc<Dictionary>>>(data: &mut [u8], container: &I) -> Result<Box<[Knowledge]>, Error> {
+fn decode_knowledge_data<I: Index<String, Output = Arc<Dictionary>>>(data: &mut [u8], container: &I) -> Result<Box<[Knowledge]>, Error> {
     let (count, used) = {let t = postcard::take_from_bytes::<usize>(data)?; (t.0, data.len() - t.1.len())};
     let data = &mut data[used..];
 

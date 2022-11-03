@@ -1,4 +1,4 @@
-use std::{collections::{BTreeMap, HashSet, HashMap}, cell::RefCell, mem::size_of, io::{Write, Read}};
+use std::{collections::{BTreeMap, HashSet, HashMap}, mem::size_of, io::{Write, Read}, sync::Mutex};
 
 use const_format::concatcp;
 use serde::{Serialize, Deserialize};
@@ -40,13 +40,13 @@ struct DictData<'a> {
     words: Box<[Word]>,
 }
 
-fn insert_obs(obscurity_index: &mut BTreeMap<u32, RefCell<HashSet<WordID>>>, id: WordID, obs: u32) {
+fn insert_obs(obscurity_index: &mut BTreeMap<u32, Mutex<HashSet<WordID>>>, id: WordID, obs: u32) {
     let mut set = {
         if !obscurity_index.contains_key(&obs) {
-            obscurity_index.insert(obs, RefCell::new(HashSet::new()));
+            obscurity_index.insert(obs, Mutex::new(HashSet::new()));
         }
 
-        obscurity_index[&obs].borrow_mut()
+        obscurity_index[&obs].lock().unwrap()
     };
 
     set.insert(id);
@@ -56,7 +56,7 @@ fn insert_obs(obscurity_index: &mut BTreeMap<u32, RefCell<HashSet<WordID>>>, id:
 pub struct Dictionary {
     pub(in super) title: String,
     pub(in super) words: Box<[Word]>,
-    pub(in super) obscurity_index: BTreeMap<u32, RefCell<HashSet<WordID>>>,
+    pub(in super) obscurity_index: BTreeMap<u32, Mutex<HashSet<WordID>>>,
     pub(in super) word_index: HashMap<String, WordID>
 }
 
@@ -91,8 +91,8 @@ impl Dictionary {
 
         let stuff = self.obscurity_index.range(..=score);
 
-        for (_, cell) in stuff {
-            let set = cell.borrow_mut();
+        for (_, mutex) in stuff {
+            let set = mutex.lock().unwrap();
             for thing in set.iter() {
                 v.push(self.words[thing.id].clone());
             }

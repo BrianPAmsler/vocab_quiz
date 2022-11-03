@@ -1,11 +1,11 @@
-use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, rc::Rc};
+use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc};
 
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
 use crate::{tools::DictMap, error::Error, words::{Dictionary, Word, WordID}};
 
-use super::{user::{User}, Progress};
+use super::{user::User, Progress};
 
 macro_rules! to_dir_path {
     ($path: expr) => {
@@ -111,7 +111,7 @@ impl Application {
             let mut file = File::open(dict_file)?;
 
             let dict = Dictionary::load_from(&mut file)?;
-            self.dicts.insert(Rc::new(dict));
+            self.dicts.insert(Arc::new(dict));
 
             dict_progress.add_progress(dict_prog);
         }

@@ -11,54 +11,51 @@ mod program;
 mod tools;
 mod error;
 
-use std::{fs::create_dir_all};
+use std::{fs::create_dir_all, sync::{Mutex, MutexGuard}};
 
 use program::{Application, DictID};
 use tauri::{Manager};
 use words::Word;
 
-static mut APP: Option<Application> = None;
+static APP: Mutex<Option<Application>> = Mutex::new(None);
 
-fn get_app() -> &'static Application {
-    // This is only unsafe if used by multiple threads (WHICH SHOULD'NT EVER HAPPEN ANYWAY)
-    unsafe {APP.as_ref().unwrap()}
-}
-
-fn get_app_mut() -> &'static mut Application {
-    // This is only unsafe if used by multiple threads (WHICH SHOULD'NT EVER HAPPEN ANYWAY)
-    unsafe {APP.as_mut().unwrap()}
+fn get_app() -> MutexGuard<'static, Option<Application>> {
+    APP.lock().unwrap()
 }
 
 fn init_app(app: Application) {
-    // This is only unsafe if used by multiple threads (WHICH SHOULD'NT EVER HAPPEN ANYWAY)
-    unsafe {APP = Some(app)};
+    APP.lock().unwrap().insert(app);
 }
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn get_dict_list<'a>() -> Box<[DictID]> {
-    let app = get_app();
+    let mtx = get_app();
+    let app = mtx.as_ref().unwrap();
     
     app.get_dict_list()
 }
 
 #[tauri::command]
 fn set_dict(dict: DictID) {
-    let app = get_app_mut();
+    let mut mtx = get_app();
+    let app = mtx.as_mut().unwrap();
 
     app.set_dict(dict);
 }
 
 #[tauri::command]
 fn pick_next_word() {
-    let app = get_app_mut();
+    let mut mtx = get_app();
+    let app = mtx.as_mut().unwrap();
 
     app.pick_next_word();
 }
 
 #[tauri::command]
 fn get_current_word() -> Option<Word> {
-    let app = get_app_mut();
+    let mtx = get_app();
+    let app = mtx.as_ref().unwrap();
 
     app.get_current_word()
 }

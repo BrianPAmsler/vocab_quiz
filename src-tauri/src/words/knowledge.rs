@@ -1,4 +1,4 @@
-use std::{io::{Write, Read}, mem::size_of, ops::Index, rc::Rc};
+use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
 
 use chrono::{DateTime, Utc, NaiveDateTime};
 use const_format::concatcp;
@@ -73,7 +73,7 @@ pub struct WordKnowledge {
 }
 
 pub struct Knowledge {
-    dict: Rc<Dictionary>,
+    dict: Arc<Dictionary>,
     knowledge: Box<[WordKnowledge]>,
 }
 
@@ -85,7 +85,7 @@ struct KnowledgeData<'a> {
 }
 
 impl Knowledge {
-    pub fn create(dict: Rc<Dictionary>) -> Knowledge {
+    pub fn create(dict: Arc<Dictionary>) -> Knowledge {
         let mut knowledge = Vec::new();
         knowledge.reserve(dict.words.len());
 
@@ -130,7 +130,7 @@ impl Knowledge {
     pub fn load_from<'a, T, I>(readable: &mut T, container: &I) -> Result<Knowledge, Error>
     where
         T: Read,
-        I: Index<String, Output = Rc<Dictionary>> {
+        I: Index<String, Output = Arc<Dictionary>> {
         let mut data = Vec::new();
         readable.read_to_end(&mut data)?;
 
@@ -167,7 +167,7 @@ impl Knowledge {
         &self.knowledge[i]
     }
 
-    pub fn get_dict(&self) -> Rc<Dictionary> {
+    pub fn get_dict(&self) -> Arc<Dictionary> {
         self.dict.clone()
     }
 }
