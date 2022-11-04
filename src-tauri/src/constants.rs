@@ -1,6 +1,6 @@
 use std::f64::consts::E;
 
-pub const VERSION: &'static str = "v0.02";
+pub const VERSION: &'static str = "v0.03";
 
 pub const LOGARITHMIC_BASE: f64 = E;
 pub const LINEAR_MULTIPLIER: f64 = 1.0;

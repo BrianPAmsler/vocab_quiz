@@ -2642,6 +2642,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_test"
+version = "1.0.147"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "641666500e4e6fba7b91b73651a375cb53579468ab3c38389289b802797cad94"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3486,6 +3495,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vocab_quiz"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "chrono",
  "const_format",
  "once_cell",
@@ -3493,8 +3503,10 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
+ "serde_test",
  "tauri",
  "tauri-build",
+ "thiserror",
  "xmltree",
 ]
 

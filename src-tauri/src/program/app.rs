@@ -3,7 +3,7 @@ use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use crate::{tools::DictMap, error::Error, words::{Dictionary, Word, WordID}};
+use crate::{tools::DictMap, error::Error, words::{Dictionary, WordID, FileVersion}};
 
 use super::{user::User, Progress};
 
@@ -53,7 +53,7 @@ impl Application {
         Ok(Application { user_dir , dict_dir, users, dicts, current_dict: None, current_user: None, current_word: None })
     }
 
-    pub fn load(&mut self, tracker: Option<Progress>) -> Result<(), Error> {
+    pub fn load(&mut self, tracker: Option<Progress>) -> Result<(), anyhow::Error> {
         // Count Dictionaries
         let mut dict_files = Vec::new();
         let mut dict_filesize = 0;
@@ -108,9 +108,20 @@ impl Application {
         // Load Dictionaries
         let dict_prog = 1.0 / (dict_files.len() as f32);
         for dict_file in dict_files {
-            let mut file = File::open(dict_file)?;
+            let mut file = File::open(&dict_file)?;
 
-            let dict = Dictionary::load_from(&mut file)?;
+            let (dict, file_version) = Dictionary::load_from(&mut file)?;
+            drop(file);
+
+            let dict = match file_version {
+                FileVersion::Current => dict,
+                FileVersion::Old(_) => {
+                    println!("old filetype, converting...");
+                    let mut file = File::create(dict_file)?;
+                    dict.save_to(&mut file)?
+                }
+            };
+
             self.dicts.insert(Arc::new(dict));
 
             dict_progress.add_progress(dict_prog);
@@ -146,7 +157,7 @@ impl Application {
 
     pub fn pick_next_word(&mut self) {
         let dict = self.dicts[self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
-        let ids = dict.get_word_ids();
+        let ids = dict.get_words_leq_score(100);
         
         let mut rng = rand::thread_rng();
         let t = rng.gen_range(0..ids.len());
@@ -154,9 +165,9 @@ impl Application {
         self.current_word = Some(ids[t]);
     }
 
-    pub fn get_current_word(&self) -> Option<Word> {
+    pub fn get_current_word(&self) -> Option<crate::words::for_frontend::Word> {
         let dict = self.dicts[self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
 
-        Some(dict.get_word_from_id(self.current_word?).clone())
+        Some(dict.get_word_from_id(self.current_word?).clone().into())
     }
 }

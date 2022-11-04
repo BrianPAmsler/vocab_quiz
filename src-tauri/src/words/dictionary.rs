@@ -1,13 +1,18 @@
-use std::{collections::{BTreeMap, HashSet, HashMap}, mem::size_of, io::{Write, Read}, sync::Mutex};
+use std::{collections::{BTreeMap, HashSet, HashMap}, io::{Write, Read}, sync::Mutex};
 
-use const_format::concatcp;
+
 use serde::{Serialize, Deserialize};
 
-use crate::{constants::{VERSION, WORD_LENGTH_PADDING}, error::Error};
+use crate::{constants::{VERSION}, error::Error, tools::EncryptedString};
 
 use super::{Word};
 
-const DICT_HEADER: &'static str = concatcp!("DICTINARYDATA_", VERSION);
+const DICT_HEADER_: &'static str = "DICTINARYDATA_";
+
+pub enum FileVersion {
+    Current,
+    Old(String)
+}
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WordID {
@@ -36,8 +41,15 @@ pub enum ObscurityMode {
 #[derive(Serialize, Deserialize)]
 struct DictData<'a> {
     header: &'a str,
-    name: String,
-    words: Box<[Word]>,
+    name: EncryptedString,
+    data: Box<[u8]>,
+}
+
+impl<'a> DictData<'a> {
+    pub fn size_of(&self) -> usize {
+        let size = self.header.len() + self.name.as_str().len() + self.data.len() + std::mem::size_of::<Self>();
+        size
+    }
 }
 
 fn insert_obs(obscurity_index: &mut BTreeMap<u32, Mutex<HashSet<WordID>>>, id: WordID, obs: u32) {
@@ -86,7 +98,7 @@ impl Dictionary {
         &self.title
     }
 
-    pub fn get_words_leq_score(&self, score: u32) -> Box<[Word]> {
+    pub fn get_words_leq_score(&self, score: u32) -> Box<[WordID]> {
         let mut v = Vec::new();
 
         let stuff = self.obscurity_index.range(..=score);
@@ -94,7 +106,7 @@ impl Dictionary {
         for (_, mutex) in stuff {
             let set = mutex.lock().unwrap();
             for thing in set.iter() {
-                v.push(self.words[thing.id].clone());
+                v.push(thing.to_owned());
             }
         }
 
@@ -131,45 +143,107 @@ impl Dictionary {
         ids.into_boxed_slice()
     }
 
-    pub fn save_to<T: Write>(self, writable: &mut T) -> Result<(), Error> {
-        let data = DictData { header: DICT_HEADER, name: self.title, words: self.words };
+    pub fn save_to<T: Write>(mut self, writable: &mut T) -> Result<Self, Error> {
+        let mut alloc = vec![0u8; std::mem::size_of_val(&(*self.words))];
+        let num_bytes = postcard::to_slice(&self.words, &mut alloc)?.len();
+        alloc.truncate(num_bytes);
+
+        let data = alloc.into_boxed_slice();
+
+        let header = DICT_HEADER_.to_owned() + VERSION;
+        let data = DictData { header: header.as_str(), name: self.title.into(), data };
         
-        let mut i = 1;
-        let mut written = false;
+        let mut final_alloc = vec![0u8; data.size_of()];
+        let num_bytes = postcard::to_slice(&data, &mut final_alloc)?.len();
+        final_alloc.truncate(num_bytes);
 
-        // Loop just in case the word strings are unusually large and the size estimate is too small
-        while !written {
-            let size_estimate = data.words.len() * (size_of::<Word>() + WORD_LENGTH_PADDING * i) + size_of::<DictData>();
-    
-            let mut alloc = vec![0u8; size_estimate];
-            
-            match postcard::to_slice(&data, &mut alloc) {
-                Ok(out) => {
-                    writable.write(out)?;
-                    written = true;
-                },
-                Err(_) => ()
-            }
-            
-            i += 1;
-        }
+        writable.write(&mut final_alloc)?;
 
-        Ok(())
+        self.title = data.name.to_string();
+
+        Ok(self)
     }
 
-    pub fn load_from<'a, T: Read>(readable: &mut T) -> Result<Dictionary, Error> {
+    pub fn load_from<'a, T: Read + Write>(read_writable: &mut T) -> Result<(Dictionary, FileVersion), Error> {
         let mut data = Vec::new();
-        readable.read_to_end(&mut data)?;
+        read_writable.read_to_end(&mut data)?;
 
-        let dict_data: DictData = postcard::from_bytes(&data[..])?;
+        let dict_data: DictData = postcard::from_bytes(&data)?;
 
-        if dict_data.header != DICT_HEADER {
-            return Err("Invalid File!")?;
+        let header = {if dict_data.header.len() < DICT_HEADER_.len() { "" } else {&dict_data.header[..DICT_HEADER_.len()]}};
+        let version = &dict_data.header[DICT_HEADER_.len()..];
+        if header != DICT_HEADER_ {
+            return Err("Invalid file header!")?;
         }
 
-        let words = dict_data.words;
-        let name = dict_data.name;
+        match version {
+            VERSION => {
+                let words = postcard::from_bytes(&dict_data.data)?;
+                let name = dict_data.name;
 
-        Ok(Dictionary::create(words, name, ObscurityMode::Manual))
+                Ok((Dictionary::create(words, name.to_string(), ObscurityMode::Manual), FileVersion::Current))
+            },
+            v => {
+                let dict = match v {
+                    "v0.02" => {
+                        #[derive(Serialize, Deserialize)]
+                        struct DictDataV0_02<'a> {
+                            header: &'a str,
+                            name: String,
+                            data: Box<[u8]>,
+                        }
+
+                        let dict_data: DictDataV0_02 = postcard::from_bytes(&data)?;
+
+                        let words = postcard::from_bytes(&dict_data.data)?;
+                        let name = dict_data.name;
+        
+                        Dictionary::create(words, name.to_string(), ObscurityMode::Manual)
+                    },
+                    "v0.01" => {
+                        #[derive(Debug, Clone, Serialize, Deserialize)]
+                        pub struct WordV0_01 {
+                            pub text: String,
+                            pub definition: String,
+                            pub pronunciation: Option<String>,
+                            pub obscurity: u32
+                        }
+                        
+                        #[derive(Serialize, Deserialize)]
+                        struct DictDataV0_01<'a> {
+                            header: &'a str,
+                            name: String,
+                            words: Box<[WordV0_01]>,
+                        }
+
+                        impl Into<Word> for WordV0_01 {
+                            fn into(self) -> Word {
+                                Word { text: self.text, definition: self.definition, pronunciation: self.pronunciation, obscurity: self.obscurity }
+                            }
+                        }
+
+                        let dict_data = postcard::from_bytes::<DictDataV0_01>(&data)?;
+
+                        let words = {
+                            let mut words = Vec::new();
+                            words.reserve(dict_data.words.len());
+
+                            for word in dict_data.words.into_vec() {
+                                words.push(word.into());
+                            }
+                            
+                            words.into_boxed_slice()
+                        };
+
+                        let name = dict_data.name;
+
+                        Dictionary::create(words, name, ObscurityMode::Manual)
+                    },
+                    _ => Err("Unknown file version!")?
+                };
+
+                Ok((dict, FileVersion::Old(v.to_owned())))
+            }
+        }
     }
 }

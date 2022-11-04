@@ -15,7 +15,7 @@ use std::{fs::create_dir_all, sync::{Mutex, MutexGuard}};
 
 use program::{Application, DictID};
 use tauri::{Manager};
-use words::Word;
+use words::for_frontend::Word;
 
 static APP: Mutex<Option<Application>> = Mutex::new(None);
 
@@ -24,7 +24,7 @@ fn get_app() -> MutexGuard<'static, Option<Application>> {
 }
 
 fn init_app(app: Application) {
-    APP.lock().unwrap().insert(app);
+    *APP.lock().unwrap() = Some(app);
 }
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command

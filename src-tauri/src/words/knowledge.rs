@@ -3,7 +3,7 @@ use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
 use chrono::{DateTime, Utc, NaiveDateTime};
 use const_format::concatcp;
 use rand::{Rng};
-use serde::{Serialize, Deserialize, de::Visitor};
+use serde::{Serialize, Deserialize, de::Visitor, Serializer, Deserializer};
 
 use crate::{constants::VERSION, error::Error};
 
@@ -11,38 +11,13 @@ use super::{WordID, Dictionary};
 
 const KNOW_HEADER: &'static str = concatcp!("KNOWLEDGEDATA_", VERSION);
 
-#[derive(Debug, Clone, Copy)]
-pub struct TimeWrapper {
-    time: DateTime<Utc>
-}
-
-impl TimeWrapper {
-    pub fn time(self) -> DateTime<Utc> {
-        self.time
-    }
-}
-
-impl From<DateTime<Utc>> for TimeWrapper {
-    fn from(time: DateTime<Utc>) -> Self {
-        TimeWrapper { time }
-    }
-}
-
-impl Serialize for TimeWrapper {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer {
-        serializer.serialize_i64(self.time.timestamp())
-    }
-}
-
 struct TimeVisitor;
 
 impl<'de> Visitor<'de> for TimeVisitor {
-    type Value = TimeWrapper;
+    type Value = Option<DateTime<Utc>>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("utc string")
+        formatter.write_str("utc timestamp")
     }
     
     fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
@@ -50,22 +25,42 @@ impl<'de> Visitor<'de> for TimeVisitor {
             E: serde::de::Error, {
         let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(v, 0), Utc);
 
-        Ok(TimeWrapper {time})
+        Ok(Some(time))
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error, {
+        Ok(None)
+    }
+
+    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>, {
+        deserializer.deserialize_i64(self)
     }
 }
 
-impl<'de> Deserialize<'de> for TimeWrapper {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de> {
-        deserializer.deserialize_i64(TimeVisitor)
+fn serialize_time<S: Serializer>(time: &Option<DateTime<Utc>>, serializer: S) -> Result<S::Ok, S::Error> {
+    match time {
+        Some(t) => {
+            serializer.serialize_some(&t.timestamp())
+        },
+        None => {
+            serializer.serialize_none()
+        }
     }
+}
+
+fn deserialize_time<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error> {
+    deserializer.deserialize_option(TimeVisitor)
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WordKnowledge {
     pub word_id: WordID,
-    pub last_practice: Option<TimeWrapper>,
+    #[serde(serialize_with = "serialize_time", deserialize_with = "deserialize_time")]
+    pub last_practice: Option<DateTime<Utc>>,
     pub confidence_score: i32,
     pub last_award: i32,
     pub reinforcement_level: u32,

@@ -1,5 +1,6 @@
-use std::fmt::Debug;
+use std::{fmt::{Debug, Display}};
 
+#[derive(thiserror::Error)]
 pub struct Error (String);
 
 impl<'a> Error {
@@ -18,20 +19,29 @@ impl Debug for Error {
     }
 }
 
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "test")
+    }
+}
+
 impl From<&'static str> for Error {
     fn from(o: &'static str) -> Self {
+        Err::<(), _>(o).unwrap();
         Error (o.to_string())
     }
 }
 
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
+        Err::<(), _>(e).unwrap(); todo!();
         Error(e.to_string())
     }
 }
 
 impl From<postcard::Error> for Error {
     fn from(o: postcard::Error) -> Self {
+        Err::<(), _>(o).unwrap(); todo!();
         Error (o.to_string())
     }
 }
