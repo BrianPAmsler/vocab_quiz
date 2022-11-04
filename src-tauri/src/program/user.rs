@@ -2,7 +2,7 @@ use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
 
 use serde::{Serialize, Deserialize};
 
-use crate::{words::{Knowledge, Dictionary}, tools::U8Buffer, error::Error};
+use crate::{words::{Knowledge, Dictionary}, tools::u8_buffer::U8Buffer, error::Error};
 
 pub struct User {
     name: String,

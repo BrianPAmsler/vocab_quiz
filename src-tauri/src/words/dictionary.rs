@@ -3,7 +3,7 @@ use std::{collections::{BTreeMap, HashSet, HashMap}, io::{Write, Read}, sync::Mu
 
 use serde::{Serialize, Deserialize};
 
-use crate::{constants::{VERSION}, error::Error, tools::EncryptedString};
+use crate::{constants::{VERSION}, error::Error, tools::crypt_string::EncryptedString};
 
 use super::{Word};
 

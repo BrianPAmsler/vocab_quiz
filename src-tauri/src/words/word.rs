@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 
-use crate::tools::EncryptedString;
+use crate::tools::crypt_string::EncryptedString;
 
 fn serialize_as_ecrypted<S: Serializer>(string: &String, s: S) -> Result<S::Ok, S::Error> {
     let enc: EncryptedString = string.to_owned().into();

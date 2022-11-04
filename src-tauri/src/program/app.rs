@@ -3,7 +3,7 @@ use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
-use crate::{tools::DictMap, error::Error, words::{Dictionary, WordID, FileVersion}};
+use crate::{tools::dict_map::DictMap, error::Error, words::{Dictionary, WordID, FileVersion}};
 
 use super::{user::User, Progress};
 

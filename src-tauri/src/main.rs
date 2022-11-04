@@ -5,7 +5,6 @@
 )]
 
 mod words;
-mod xml;
 mod constants;
 mod program;
 mod tools;
