@@ -34,14 +34,12 @@ impl From<&'static str> for Error {
 
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
-        Err::<(), _>(e).unwrap(); todo!();
         Error(e.to_string())
     }
 }
 
 impl From<postcard::Error> for Error {
     fn from(o: postcard::Error) -> Self {
-        Err::<(), _>(o).unwrap(); todo!();
         Error (o.to_string())
     }
 }
