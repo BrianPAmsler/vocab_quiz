@@ -4,7 +4,7 @@ const params = new Proxy(new URLSearchParams(window.location.search), {
     get: (searchParams, prop) => searchParams.get(prop),
 });
 
-let word_obj = await invoke("get_current_word", {});
+let word_obj = await invoke("get_current_word");
 
 const yes_no = document.getElementById("yesno");
 const chk = document.getElementById("check");

@@ -27,7 +27,6 @@ impl Display for Error {
 
 impl From<&'static str> for Error {
     fn from(o: &'static str) -> Self {
-        Err::<(), _>(o).unwrap();
         Error (o.to_string())
     }
 }
@@ -41,5 +40,11 @@ impl From<std::io::Error> for Error {
 impl From<postcard::Error> for Error {
     fn from(o: postcard::Error) -> Self {
         Error (o.to_string())
+    }
+}
+
+impl From<Error> for String {
+    fn from(value: Error) -> Self {
+        value.0
     }
 }

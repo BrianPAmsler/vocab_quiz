@@ -91,6 +91,24 @@ p {
   height: 0;
 }
 
+.narrow {
+  width: 0;
+}
+
+.buttonbar{
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+}
+
+.overlay {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+}
+
 h1 {
   text-align: center;
 }
@@ -107,10 +125,6 @@ button {
   background-color: #ffffff;
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
   transition: border-color 0.25s, filter 0.75s;
-}
-
-input:focus {
-  filter: drop-shadow(0 0 2em #000000);
 }
 
 button:hover,
@@ -148,6 +162,12 @@ button {
   
   height: 100vh;
   width: 100vw;
+}
+
+#title {
+  margin-top: 5vh;
+  margin-bottom: 5vh;
+  font-size: 8vh;
 }
 
 @media (prefers-color-scheme: dark) {

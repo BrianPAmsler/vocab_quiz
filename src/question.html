@@ -10,11 +10,6 @@
     <script type="module" src="js/main.js" defer></script>
     <script type="module" src="js/titlebar.js" defer></script>
     <script type="module" src="js/question.js" defer></script>
-    <style>
-      .logo.vanilla:hover {
-        filter: drop-shadow(0 0 2em #ffe21c);
-      }
-    </style>
   </head>
 
   <body>
@@ -34,7 +29,7 @@
                     <div id="check">
                         <button class="scaled-button"onclick="check()">Check</button>
                     </div>
-                    <div id="yesno" style="display: none; width: 100vw;">
+                    <div class="buttonbar" id="yesno" style="display: none;width: 100vw;">
                         <button class="scaled-button yes" onclick="yes()">Correct</button>
                         <button class="scaled-button no" onclick="no()">Incorrect</button>
                     </div>

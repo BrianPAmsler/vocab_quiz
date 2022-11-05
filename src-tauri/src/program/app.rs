@@ -1,11 +1,11 @@
-use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc};
+use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc, collections::HashMap};
 
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 
 use crate::{tools::dict_map::DictMap, error::Error, words::{Dictionary, WordID, FileVersion}};
 
-use super::{user::User, Progress};
+use super::{user::{User, self}, Progress};
 
 macro_rules! to_dir_path {
     ($path: expr) => {
@@ -36,7 +36,7 @@ pub struct UserID;
 pub struct Application {
     user_dir: PathBuf,
     dict_dir: PathBuf,
-    users: Vec<User>,
+    users: HashMap<String, User>,
     dicts: DictMap,
     current_dict: Option<DictID>,
     current_user: Option<UserID>,
@@ -47,7 +47,7 @@ impl Application {
     pub fn new<P1: AsRef<Path>, P2: AsRef<Path>>(user_dir: P1, dict_dir: P2) -> Result<Application, Error> {
         let user_dir = to_dir_path!(user_dir);
         let dict_dir = to_dir_path!(dict_dir);
-        let users = Vec::new();
+        let users = HashMap::<String, User>::new();
         let dicts = DictMap::new();
 
         Ok(Application { user_dir , dict_dir, users, dicts, current_dict: None, current_user: None, current_word: None })
@@ -133,7 +133,7 @@ impl Application {
             let mut file = File::open(user_file)?;
 
             let user = User::load_from(&mut file, &self.dicts)?;
-            self.users.push(user);
+            self.users.insert(user.get_name().to_owned(), user);
 
             user_progress.add_progress(user_prog);
         }
@@ -169,5 +169,37 @@ impl Application {
         let dict = self.dicts[self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
 
         Some(dict.get_word_from_id(self.current_word?).clone().into())
+    }
+
+    pub fn get_users(&self) -> Box<[String]> {
+        let mut out = Vec::new();
+        out.reserve(self.users.len());
+
+        for (name, _) in &self.users {
+            out.push(name.to_owned());
+        }
+
+        out.into_boxed_slice()
+    }
+
+    pub fn create_user(&mut self, name: String) -> Result<(), Error> {
+        if name.len() == 0 {
+            return Err("Must provide a name!")?;
+        }
+        if self.users.contains_key(&name) {
+            return Err("User with this name already exists!")?;
+        }
+
+        let mut user_path = PathBuf::new();
+        user_path.push(&self.user_dir);
+        user_path.push(name.to_owned() + ".usr");
+        let mut user_file = File::create(user_path)?;
+
+        let user = User::create(name);
+        let user = user.save_to(&mut user_file)?;
+
+        self.users.insert(user.get_name().to_owned(), user);
+
+        Ok(())
     }
 }

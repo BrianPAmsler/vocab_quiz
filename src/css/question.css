@@ -13,10 +13,3 @@
     line-height: 1.2;
     justify-content: space-evenly;
 }
-
-#yesno{
-    width: 100%;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-evenly;
-}

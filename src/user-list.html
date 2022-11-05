@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/titlebar.css" />
+    <link rel="stylesheet" href="css/user-list.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tauri App</title>
+    <script type="module" src="js/main.js" defer></script>
+    <script type="module" src="js/titlebar.js" defer></script>
+    <script type="module" src="js/user-list.js" defer></script>
+</head>
+
+<body>
+    <div id="bg">
+        <div class="centered">
+            <div id="scroll" class="container">
+                <div class="top-bar">
+                    <h1 id="title">Users</h1>
+                </div>
+
+                <div id="users">
+                    <button id="add-user" onclick="window.location.replace('new-user.html')">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="overlay">
+        <div class="top-bar">
+            <div id="left">
+                <button id="back-button" type="button" onclick="window.location.replace('index.html')">←</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

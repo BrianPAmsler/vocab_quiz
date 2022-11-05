@@ -59,8 +59,24 @@ fn get_current_word() -> Option<Word> {
     app.get_current_word()
 }
 
-const USER_PATH: &'static str = "test/users";
-const DICT_PATH: &'static str = "test/dicts";
+#[tauri::command]
+fn get_users() -> Box<[String]> {
+    let mtx = get_app();
+    let app = mtx.as_ref().unwrap();
+
+    app.get_users()
+}
+
+#[tauri::command]
+fn create_user(name: String) -> Result<(), String> {
+    let mut mtx = get_app();
+    let app = mtx.as_mut().unwrap();
+
+    Ok(app.create_user(name)?)
+}
+
+const USER_PATH: &'static str = "C:/Users/Brian/Desktop/users";
+const DICT_PATH: &'static str = "C:/Users/Brian/Desktop/dicts";
 
 fn main() {
     create_dir_all(USER_PATH).unwrap();
@@ -71,7 +87,7 @@ fn main() {
     init_app(app);
 
     tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word])
+    .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word, get_users, create_user])
         .setup(|app| {
             let main_window = app.get_window("main").unwrap();
             main_window.set_decorations(false).unwrap();
