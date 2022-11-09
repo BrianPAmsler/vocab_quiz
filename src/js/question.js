@@ -16,6 +16,8 @@ word.innerText = word_obj.text;
 pron.innerHTML = "Pronunciation:<br>" + word_obj.pronunciation;
 def.innerHTML = "Definition:<br>" + word_obj.definition;
 
+word.style.display = "";
+
 async function next() {
     await invoke("pick_next_word", {});
 
