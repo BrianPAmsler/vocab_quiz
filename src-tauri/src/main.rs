@@ -12,8 +12,9 @@ mod error;
 
 use std::{fs::create_dir_all, sync::{Mutex, MutexGuard}};
 
+use constants::APP_DATA_FOLDER;
 use program::{Application, DictID};
-use tauri::{Manager};
+use tauri::{Manager, api::path::data_dir};
 use words::for_frontend::Word;
 
 static APP: Mutex<Option<Application>> = Mutex::new(None);
@@ -75,14 +76,20 @@ fn create_user(name: String) -> Result<(), String> {
     Ok(app.create_user(name)?)
 }
 
-const USER_PATH: &'static str = "C:/Users/Brian/Desktop/users";
-const DICT_PATH: &'static str = "C:/Users/Brian/Desktop/dicts";
-
 fn main() {
-    create_dir_all(USER_PATH).unwrap();
-    create_dir_all(DICT_PATH).unwrap();
+    let mut base_path = data_dir().unwrap();
+    base_path.push(APP_DATA_FOLDER);
 
-    let mut app = Application::new(USER_PATH, DICT_PATH).unwrap();
+    let mut user_path = base_path.clone();
+    user_path.push("users");
+
+    let mut dict_path = base_path.clone();
+    dict_path.push("dicts");
+
+    create_dir_all(&user_path).unwrap();
+    create_dir_all(&dict_path).unwrap();
+
+    let mut app = Application::new(user_path, dict_path).unwrap();
     app.load(None).unwrap();
     init_app(app);
 

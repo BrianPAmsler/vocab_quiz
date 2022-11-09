@@ -1,5 +1,7 @@
 use std::f64::consts::E;
 
+pub const APP_DATA_FOLDER: &'static str = "vocab_quiz";
+
 pub const VERSION: &'static str = "v0.03";
 
 pub const LOGARITHMIC_BASE: f64 = E;
