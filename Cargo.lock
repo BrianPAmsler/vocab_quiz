@@ -2703,14 +2703,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serialized_version_manager"
-version = "0.1.0"
-source = "git+https://github.com/BrianPAmsler/serialized_version_manager.git#2a3459b7b68de8e94bff18188cbf30b44e3c47c9"
-dependencies = [
- "version_macro",
-]
-
-[[package]]
 name = "servo_arc"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2854,6 +2846,14 @@ name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+
+[[package]]
+name = "struct_version_manager"
+version = "0.1.0"
+source = "git+https://github.com/BrianPAmsler/struct_version_manager.git#5c9185cf0e540018bdb83f9b5f9903ea23439bf2"
+dependencies = [
+ "version_macro",
+]
 
 [[package]]
 name = "strum"
@@ -3496,7 +3496,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "version_macro"
 version = "0.1.0"
-source = "git+https://github.com/BrianPAmsler/serialized_version_manager.git#2a3459b7b68de8e94bff18188cbf30b44e3c47c9"
+source = "git+https://github.com/BrianPAmsler/struct_version_manager.git#5c9185cf0e540018bdb83f9b5f9903ea23439bf2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3514,7 +3514,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "serialized_version_manager",
+ "struct_version_manager",
  "tauri",
  "tauri-build",
  "thiserror",
