@@ -1,0 +1,40 @@
+.top-bar {
+    width: 100vw;
+}
+
+button {
+    width: 75vw;
+    height: 10vw;
+    margin-bottom: 1.25vw;
+    margin-top: 1.25vw;
+    font-weight: 500;
+    font-size: 4vw;
+}
+
+#scroll {
+    overflow-y: scroll;
+}
+
+#dicts {
+    height: 100%;
+}
+
+#scroll::-webkit-scrollbar {
+    display: none;
+}
+
+#left {
+    display: flex;
+    width: 100%;
+    align-items: center;
+}
+
+#back-button {
+    width: 10vh;
+    height: 10vh;
+    margin-left: 2.5vw;
+    font-size: 4vh;
+    font-weight: 1000;
+    line-height: 4vh;
+    padding: 0;
+}

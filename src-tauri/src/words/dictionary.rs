@@ -3,11 +3,12 @@ use std::{collections::{BTreeMap, HashSet, HashMap}, io::{Write, Read}, sync::Mu
 
 use serde::{Serialize, Deserialize};
 
-use crate::{constants::{VERSION}, error::Error, tools::crypt_string::EncryptedString};
+use crate::{constants::{VERSION}, error::Error, tools::crypt_string::PermutedString, program::filemanager};
 
 use super::{Word};
 
-const DICT_HEADER_: &'static str = "DICTINARYDATA_";
+const DICT_HEADER: &'static str = "DICTINARYDATA";
+const DICT_VERSION: &'static str = "1.0";
 
 pub enum FileVersion {
     Current,
@@ -39,15 +40,14 @@ pub enum ObscurityMode {
 }
 
 #[derive(Serialize, Deserialize)]
-struct DictData<'a> {
-    header: &'a str,
-    name: EncryptedString,
+struct DictData {
+    name: PermutedString,
     data: Box<[u8]>,
 }
 
-impl<'a> DictData<'a> {
+impl DictData {
     pub fn size_of(&self) -> usize {
-        let size = self.header.len() + self.name.as_str().len() + self.data.len() + std::mem::size_of::<Self>();
+        let size = self.name.len() + self.data.len() + std::mem::size_of::<Self>();
         size
     }
 }
@@ -143,41 +143,37 @@ impl Dictionary {
         ids.into_boxed_slice()
     }
 
-    pub fn save_to<T: Write>(mut self, writable: &mut T) -> Result<Self, Error> {
+    pub fn save_to<T: Write>(&self, writable: &mut T) -> Result<(), Error> {
         let mut alloc = vec![0u8; std::mem::size_of_val(&(*self.words))];
         let num_bytes = postcard::to_slice(&self.words, &mut alloc)?.len();
         alloc.truncate(num_bytes);
 
         let data = alloc.into_boxed_slice();
 
-        let header = DICT_HEADER_.to_owned() + VERSION;
-        let data = DictData { header: header.as_str(), name: self.title.into(), data };
+        let data = DictData { name: self.title.to_owned().into(), data };
         
         let mut final_alloc = vec![0u8; data.size_of()];
         let num_bytes = postcard::to_slice(&data, &mut final_alloc)?.len();
         final_alloc.truncate(num_bytes);
 
-        writable.write(&mut final_alloc)?;
+        filemanager::save_file(writable, DICT_HEADER.to_owned(), DICT_VERSION.to_owned(),final_alloc.into_boxed_slice())?;
 
-        self.title = data.name.to_string();
-
-        Ok(self)
+        Ok(())
     }
 
-    pub fn load_from<'a, T: Read + Write>(read_writable: &mut T) -> Result<(Dictionary, FileVersion), Error> {
-        let mut data = Vec::new();
-        read_writable.read_to_end(&mut data)?;
+    pub fn load_from<'a, T: Read>(readable: &mut T) -> Result<(Dictionary, FileVersion), Error> {
+        let mut file = filemanager::read_file(readable)?;
 
-        let dict_data: DictData = postcard::from_bytes(&data)?;
-
-        let header = {if dict_data.header.len() < DICT_HEADER_.len() { "" } else {&dict_data.header[..DICT_HEADER_.len()]}};
-        let version = &dict_data.header[DICT_HEADER_.len()..];
-        if header != DICT_HEADER_ {
-            return Err("Invalid file header!")?;
+        if file.header != DICT_HEADER {
+            return Err("Invalid File Header!")?;
         }
 
-        match version {
-            VERSION => {
+        match file.version.as_str() {
+            DICT_VERSION => {
+                let data = &mut file.data[..];
+        
+                let dict_data: DictData = postcard::from_bytes(&data)?;
+
                 let words = postcard::from_bytes(&dict_data.data)?;
                 let name = dict_data.name;
 
@@ -185,61 +181,10 @@ impl Dictionary {
             },
             v => {
                 let dict = match v {
-                    "v0.02" => {
-                        #[derive(Serialize, Deserialize)]
-                        struct DictDataV0_02<'a> {
-                            header: &'a str,
-                            name: String,
-                            data: Box<[u8]>,
-                        }
-
-                        let dict_data: DictDataV0_02 = postcard::from_bytes(&data)?;
-
-                        let words = postcard::from_bytes(&dict_data.data)?;
-                        let name = dict_data.name;
-        
-                        Dictionary::create(words, name.to_string(), ObscurityMode::Manual)
-                    },
-                    "v0.01" => {
-                        #[derive(Debug, Clone, Serialize, Deserialize)]
-                        pub struct WordV0_01 {
-                            pub text: String,
-                            pub definition: String,
-                            pub pronunciation: Option<String>,
-                            pub obscurity: u32
-                        }
-                        
-                        #[derive(Serialize, Deserialize)]
-                        struct DictDataV0_01<'a> {
-                            header: &'a str,
-                            name: String,
-                            words: Box<[WordV0_01]>,
-                        }
-
-                        impl Into<Word> for WordV0_01 {
-                            fn into(self) -> Word {
-                                Word { text: self.text, definition: self.definition, pronunciation: self.pronunciation, obscurity: self.obscurity }
-                            }
-                        }
-
-                        let dict_data = postcard::from_bytes::<DictDataV0_01>(&data)?;
-
-                        let words = {
-                            let mut words = Vec::new();
-                            words.reserve(dict_data.words.len());
-
-                            for word in dict_data.words.into_vec() {
-                                words.push(word.into());
-                            }
-                            
-                            words.into_boxed_slice()
-                        };
-
-                        let name = dict_data.name;
-
-                        Dictionary::create(words, name, ObscurityMode::Manual)
-                    },
-                    _ => Err("Unknown file version!")?
+                    _ => {
+                        println!("{}", v);
+                        Err("Unknown File Version!")?
+                    }
                 };
 
                 Ok((dict, FileVersion::Old(v.to_owned())))

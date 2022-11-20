@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/titlebar.css" />
+    <link rel="stylesheet" href="css/dict-list.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tauri App</title>
+    <script type="module" src="js/main.js" defer></script>
+    <script type="module" src="js/titlebar.js" defer></script>
+    <script type="module" src="js/dict-list.js" defer></script>
+</head>
+
+<body>
+    <div id="bg">
+        <div class="centered">
+            <div id="scroll" class="container">
+                <div class="top-bar">
+                    <h1 id="title">Dictionaries</h1>
+                </div>
+
+                <div id="dicts">
+                    <button id="add-dict" onclick="load_dict()">+</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="overlay">
+        <div class="top-bar">
+            <div id="left">
+                <button id="back-button" type="button" onclick="back()">←</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -36,11 +36,11 @@ fn decrypt_string(mut string: Box<[u8]>) -> String {
 }
 
 #[derive(Debug, Clone)]
-pub struct EncryptedString {
+pub struct PermutedString {
     string: String
 }
 
-impl EncryptedString {
+impl PermutedString {
     pub fn to_string(self) -> String {
         self.string
     }
@@ -48,15 +48,19 @@ impl EncryptedString {
     pub fn as_str(&self) -> &str {
         &self.string
     }
+
+    pub fn len(&self) -> usize {
+        self.string.len()
+    }
 }
 
-impl From<String> for EncryptedString {
+impl From<String> for PermutedString {
     fn from(string: String) -> Self {
         Self {string}
     }
 }
 
-impl Serialize for EncryptedString {
+impl Serialize for PermutedString {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer {
@@ -67,7 +71,7 @@ impl Serialize for EncryptedString {
 struct EStrVisitor;
 
 impl<'de> Visitor<'de> for EStrVisitor {
-    type Value = EncryptedString;
+    type Value = PermutedString;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("bytes representing an encrypted string.")
@@ -77,21 +81,21 @@ impl<'de> Visitor<'de> for EStrVisitor {
         where
             E: serde::de::Error, {
         let string = decrypt_string(v.to_owned().into_boxed_slice());
-        Ok(EncryptedString {string})
+        Ok(PermutedString {string})
     }
 
     fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
         where
             E: serde::de::Error, {
         let string = decrypt_string(v.into_boxed_slice());
-        Ok(EncryptedString { string })
+        Ok(PermutedString { string })
     }
 
     fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
         where
             E: serde::de::Error, {
             let string = decrypt_string(v.to_owned().into_boxed_slice());
-            Ok(EncryptedString {string})
+            Ok(PermutedString {string})
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -119,7 +123,7 @@ impl<'de> Visitor<'de> for EStrVisitor {
     }
 }
 
-impl<'de> Deserialize<'de> for EncryptedString {
+impl<'de> Deserialize<'de> for PermutedString {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de> {

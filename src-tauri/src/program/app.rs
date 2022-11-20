@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::{tools::dict_map::DictMap, error::Error, words::{Dictionary, WordID, FileVersion}};
 
-use super::{user::{User, self}, Progress};
+use super::{user::User, Progress};
 
 macro_rules! to_dir_path {
     ($path: expr) => {
@@ -53,7 +53,7 @@ impl Application {
         Ok(Application { user_dir , dict_dir, users, dicts, current_dict: None, current_user: None, current_word: None })
     }
 
-    pub fn load(&mut self, tracker: Option<Progress>) -> Result<(), anyhow::Error> {
+    pub fn load(&mut self, tracker: Option<Progress>) -> Result<(), Error> {
         // Count Dictionaries
         let mut dict_files = Vec::new();
         let mut dict_filesize = 0;
@@ -110,21 +110,27 @@ impl Application {
         for dict_file in dict_files {
             let mut file = File::open(&dict_file)?;
 
-            let (dict, file_version) = Dictionary::load_from(&mut file)?;
-            drop(file);
+            let r = Dictionary::load_from(&mut file);
 
-            let dict = match file_version {
-                FileVersion::Current => dict,
-                FileVersion::Old(_) => {
-                    println!("old filetype, converting...");
-                    let mut file = File::create(dict_file)?;
-                    dict.save_to(&mut file)?
-                }
-            };
-
-            self.dicts.insert(Arc::new(dict));
-
-            dict_progress.add_progress(dict_prog);
+            if r.is_ok() {
+                let (dict, file_version) = r.unwrap();
+                drop(file);
+    
+                match file_version {
+                    FileVersion::Current => (),
+                    FileVersion::Old(_) => {
+                        println!("old filetype, converting...");
+                        let mut file = File::create(dict_file)?;
+                        dict.save_to(&mut file)?
+                    }
+                };
+    
+                self.dicts.insert(Arc::new(dict));
+    
+                dict_progress.add_progress(dict_prog);
+            } else {
+                println!("{}", r.err().unwrap().msg());
+            }
         }
 
         // Load Users
@@ -142,13 +148,9 @@ impl Application {
     }
 
     pub fn get_dict_list(&self) -> Box<[DictID]> {
-        let mut list = Vec::new();
+        let list: Box<[DictID]> = (&self.dicts).into_iter().map(|x| DictID { name: x.1.get_title().to_owned() }).collect();
 
-        for (k, _) in &self.dicts {
-            list.push(DictID { name: k.to_owned() });
-        }
-
-        list.into_boxed_slice()
+        list
     }
 
     pub fn set_dict(&mut self, dict: DictID) {
@@ -201,5 +203,13 @@ impl Application {
         self.users.insert(user.get_name().to_owned(), user);
 
         Ok(())
+    }
+
+    pub fn get_user_dir(&self) -> PathBuf {
+        self.user_dir.clone()
+    }
+
+    pub fn get_dict_dir(&self) -> PathBuf {
+        self.dict_dir.clone()
     }
 }

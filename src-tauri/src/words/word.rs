@@ -1,19 +1,19 @@
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 
-use crate::tools::crypt_string::EncryptedString;
+use crate::tools::crypt_string::PermutedString;
 
 fn serialize_as_ecrypted<S: Serializer>(string: &String, s: S) -> Result<S::Ok, S::Error> {
-    let enc: EncryptedString = string.to_owned().into();
+    let enc: PermutedString = string.to_owned().into();
     enc.serialize(s)
 }
 
 fn deserialize_as_ecrypted<'de, D: Deserializer<'de>>(s: D) -> Result<String, D::Error> {
-    let enc = EncryptedString::deserialize(s)?;
+    let enc = PermutedString::deserialize(s)?;
     Ok(enc.to_string())
 }
 
 fn serialize_as_ecrypted_op<S: Serializer>(string: &Option<String>, s: S) -> Result<S::Ok, S::Error> {
-    let enc: Option<EncryptedString> = match string {
+    let enc: Option<PermutedString> = match string {
         Some(s) => Some(s.to_owned().into()),
         None => None
     };
@@ -22,7 +22,7 @@ fn serialize_as_ecrypted_op<S: Serializer>(string: &Option<String>, s: S) -> Res
 }
 
 fn deserialize_as_ecrypted_op<'de, D: Deserializer<'de>>(s: D) -> Result<Option<String>, D::Error> {
-    let enc = Option::<EncryptedString>::deserialize(s)?;
+    let enc = Option::<PermutedString>::deserialize(s)?;
 
     match enc {
         Some(es) => Ok(Some(es.to_string())),

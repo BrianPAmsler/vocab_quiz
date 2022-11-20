@@ -1,5 +1,7 @@
 use std::{fmt::{Debug, Display}};
 
+use crate::tools::xml::DictParseError;
+
 #[derive(thiserror::Error)]
 pub struct Error (String);
 
@@ -46,5 +48,12 @@ impl From<postcard::Error> for Error {
 impl From<Error> for String {
     fn from(value: Error) -> Self {
         value.0
+    }
+}
+
+impl From<DictParseError> for Error {
+    fn from(value: DictParseError) -> Self {
+        let s = format!("{:?}", value);
+        Error(s)
     }
 }
