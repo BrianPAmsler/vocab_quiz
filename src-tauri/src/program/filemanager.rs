@@ -22,7 +22,7 @@ pub fn read_file<R: Read>(readable: &mut R) -> Result<AppFile, Error> {
     Ok(dict_data)
 }
 
-pub fn save_file<W: Write>(writable: &mut W, header: String, version: String, data: Box<[u8]>) -> Result<(), Error> {
+pub fn save_file<W: Write>(writable: &mut W, header: String, version: String, data: Box<[u8]>) -> Result<usize, Error> {
     let size = size_of::<AppFile>() + data.len();
 
     let file = AppFile { header, version: version.into() ,data, _pd: PhantomData };
@@ -32,5 +32,5 @@ pub fn save_file<W: Write>(writable: &mut W, header: String, version: String, da
 
     writable.write(out_data)?;
 
-    Ok(())
+    Ok(out_data.len())
 }

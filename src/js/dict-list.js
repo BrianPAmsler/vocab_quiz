@@ -3,6 +3,8 @@ const { open, save }  = window.__TAURI__.dialog;
 
 const list = document.getElementById("dicts");
 
+const fit = window.fit;
+
 let dicts = await invoke("get_dict_list");
 dicts.sort();
 
@@ -14,14 +16,20 @@ async function pick_dict(dict) {
 }
 
 let plus = document.getElementById("add-dict");
+console.log(plus.clientHeight);
 function make_dict_button(dict) {
     let button = document.createElement("button");
-    button.innerText = dict.name;
+    let div = document.createElement("div");
+    button.appendChild(div);
+    div.innerText = dict.name;
+    div.classList.add("button");
     button.onclick = async (e) => {
         await pick_dict(dict);
     }
 
     list.insertBefore(button, plus);
+    
+    fit(div, 4);
 }
 
 dicts.forEach(make_dict_button);

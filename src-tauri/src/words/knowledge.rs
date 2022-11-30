@@ -1,15 +1,17 @@
 use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
 
 use chrono::{DateTime, Utc, NaiveDateTime};
-use const_format::concatcp;
-use rand::{Rng};
-use serde::{Serialize, Deserialize, de::Visitor, Serializer, Deserializer};
+use rand::Rng;
+use serde::{Serialize, Deserialize, de::Visitor, Deserializer};
 
-use crate::{constants::VERSION, error::Error};
+use struct_version_manager::version_macro::version_mod;
+
+use crate::{error::Error, tools::crypt_string::PermutedString, program::filemanager};
 
 use super::{WordID, Dictionary};
 
-const KNOW_HEADER: &'static str = concatcp!("KNOWLEDGEDATA_", VERSION);
+const KNOW_HEADER: &'static str = "KNOWLEDGEDATA";
+const KNOW_VERSION: &'static str = "0.1";
 
 struct TimeVisitor;
 
@@ -23,7 +25,7 @@ impl<'de> Visitor<'de> for TimeVisitor {
     fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
             E: serde::de::Error, {
-        let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(v, 0), Utc);
+        let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp_opt(v, 0).unwrap(), Utc);
 
         Ok(Some(time))
     }
@@ -41,31 +43,45 @@ impl<'de> Visitor<'de> for TimeVisitor {
     }
 }
 
-fn serialize_time<S: Serializer>(time: &Option<DateTime<Utc>>, serializer: S) -> Result<S::Ok, S::Error> {
-    match time {
-        Some(t) => {
-            serializer.serialize_some(&t.timestamp())
-        },
-        None => {
-            serializer.serialize_none()
+#[version_mod(WordKnowledge)]
+mod word_knowledge {
+    pub mod v0_1 {
+        use chrono::{DateTime, Utc};
+        use serde::{Serialize, Deserialize, Serializer, Deserializer};
+        use struct_version_manager::version_macro::version;
+
+        use crate::words::{WordID, knowledge::TimeVisitor};
+
+        fn serialize_time<S: Serializer>(time: &Option<DateTime<Utc>>, serializer: S) -> Result<S::Ok, S::Error> {
+            match time {
+                Some(t) => {
+                    serializer.serialize_some(&t.timestamp())
+                },
+                None => {
+                    serializer.serialize_none()
+                }
+            }
+        }
+        
+        fn deserialize_time<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error> {
+            deserializer.deserialize_option(TimeVisitor)
+        }
+
+        #[derive(Clone, Debug, Serialize, Deserialize)]
+        #[version("0.1")]
+        pub struct WordKnowledge {
+            pub word_id: WordID,
+            #[serde(serialize_with = "serialize_time", deserialize_with = "deserialize_time")]
+            pub last_practice: Option<DateTime<Utc>>,
+            pub confidence_score: i32,
+            pub last_award: i32,
+            pub reinforcement_level: u32,
+            pub (in super::super) _pv: ()
         }
     }
 }
 
-fn deserialize_time<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error> {
-    deserializer.deserialize_option(TimeVisitor)
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct WordKnowledge {
-    pub word_id: WordID,
-    #[serde(serialize_with = "serialize_time", deserialize_with = "deserialize_time")]
-    pub last_practice: Option<DateTime<Utc>>,
-    pub confidence_score: i32,
-    pub last_award: i32,
-    pub reinforcement_level: u32,
-    _pv: ()
-}
+pub use word_knowledge::v0_1::WordKnowledge;
 
 pub struct Knowledge {
     dict: Arc<Dictionary>,
@@ -73,9 +89,8 @@ pub struct Knowledge {
 }
 
 #[derive(Serialize, Deserialize)]
-struct KnowledgeData<'a> {
-    header: &'a str,
-    dict_title: String,
+struct KnowledgeData {
+    dict_title: PermutedString,
     knowledge_data: Box<[u8]>,
 }
 
@@ -103,19 +118,21 @@ impl Knowledge {
         let kw_size = postcard::to_slice(&self.knowledge, &mut kw_data)?.len();
         kw_data.truncate(kw_size);
 
-        let data = KnowledgeData { header: KNOW_HEADER, dict_title: self.dict.title.clone(), knowledge_data: kw_data.into_boxed_slice() };
-        
+        let data = KnowledgeData { dict_title: self.dict.title.clone().into(), knowledge_data: kw_data.into_boxed_slice() };
+
         let mut alloc = vec![0u8; size_estimate];
-        
-        let out = postcard::to_slice(&data, &mut alloc)?;
-        
-        Ok(writable.write(out)?)
+
+        let out_len = postcard::to_slice(&data, &mut alloc)?.len();
+        alloc.truncate(out_len);
+
+        let size = filemanager::save_file(writable, KNOW_HEADER.to_owned(), KNOW_VERSION.to_owned(), alloc.into_boxed_slice())?;
+        Ok(size)
     }
 
     pub fn randomize(&mut self) {
         let mut rng = rand::thread_rng();
         for k in self.knowledge.as_mut() {
-            k.last_practice = Some(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(rng.gen::<u32>() as i64, 0), Utc).into());
+            k.last_practice = Some(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp_opt(rng.gen::<u32>() as i64, 0).unwrap(), Utc).into());
             k.confidence_score = rng.gen();
             k.last_award = rng.gen();
             k.reinforcement_level = rng.gen();
@@ -126,19 +143,35 @@ impl Knowledge {
     where
         T: Read,
         I: Index<String, Output = Arc<Dictionary>> {
-        let mut data = Vec::new();
-        readable.read_to_end(&mut data)?;
+        
+        let mut file = filemanager::read_file(readable)?;
 
-        let dict_data = postcard::from_bytes::<KnowledgeData>(&data)?;
-
-        if dict_data.header != KNOW_HEADER {
-            return Err("Invalid File!")?;
+        if file.header != KNOW_HEADER {
+            return Err("Invalid File Header!")?;
         }
 
-        let dict = container.index(dict_data.dict_title).clone();
-        let knowledge = postcard::from_bytes(&dict_data.knowledge_data)?;
+        match file.version.as_str() {
+            KNOW_VERSION => {
+                let data = &mut file.data[..];
+        
+                let know_data: KnowledgeData = postcard::from_bytes(&data)?;
 
-        Ok(Knowledge { dict: dict.clone(), knowledge })
+                let dict = container.index(know_data.dict_title.to_string()).clone();
+                let knowledge = postcard::from_bytes(&know_data.knowledge_data)?;
+        
+                Ok(Knowledge { dict: dict.clone(), knowledge })
+            },
+            v => {
+                let knowl = match v {
+                    _ => {
+                        println!("{}", v);
+                        Err("Unknown File Version!")?
+                    }
+                };
+
+                Ok(knowl)
+            }
+        }
     }
 
     pub fn practice(&mut self, word: WordID, award: i32) {

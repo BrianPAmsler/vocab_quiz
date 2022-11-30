@@ -20,7 +20,7 @@ macro_rules! to_dir_path {
     };
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DictID {
     name: String
 }
@@ -31,7 +31,16 @@ impl DictID {
     }
 }
 
-pub struct UserID;
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UserID {
+    name: String
+}
+
+impl UserID {
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
+    }
+}
 
 pub struct Application {
     user_dir: PathBuf,
@@ -173,15 +182,29 @@ impl Application {
         Some(dict.get_word_from_id(self.current_word?).clone().into())
     }
 
-    pub fn get_users(&self) -> Box<[String]> {
+    pub fn get_users(&self) -> Box<[UserID]> {
         let mut out = Vec::new();
         out.reserve(self.users.len());
 
         for (name, _) in &self.users {
-            out.push(name.to_owned());
+            out.push(UserID { name: name.to_owned()});
         }
 
         out.into_boxed_slice()
+    }
+
+    pub fn set_current_user(&mut self, user: UserID) -> Result<(), Error>{
+        if self.users.contains_key(&user.name) {
+            self.current_user = Some(user);
+
+            Ok(())
+        } else {
+            Err("Invalid User.")?
+        }
+    }
+
+    pub fn get_current_user(&self) -> Option<UserID> {
+        self.current_user.clone()
     }
 
     pub fn create_user(&mut self, name: String) -> Result<(), Error> {

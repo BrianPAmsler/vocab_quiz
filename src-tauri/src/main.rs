@@ -14,7 +14,7 @@ use std::{fs::{create_dir_all, File}, sync::{Mutex, MutexGuard}, path::PathBuf};
 
 use constants::APP_DATA_FOLDER;
 use error::Error;
-use program::{Application, DictID};
+use program::{Application, DictID, UserID};
 use tauri::{Manager, api::path::data_dir};
 use words::for_frontend::Word;
 
@@ -116,11 +116,27 @@ fn get_current_word() -> Option<Word> {
 }
 
 #[tauri::command]
-fn get_users() -> Box<[String]> {
+fn get_users() -> Box<[UserID]> {
     let mtx = get_app();
     let app = mtx.as_ref().unwrap();
 
     app.get_users()
+}
+
+#[tauri::command]
+fn set_current_user(user: UserID) -> Result<(), String> {
+    let mut mtx = get_app();
+    let app = mtx.as_mut().unwrap();
+
+    Ok(app.set_current_user(user)?)
+}
+
+#[tauri::command]
+fn get_current_user() -> Option<UserID> {
+    let mtx = get_app();
+    let app = mtx.as_ref().unwrap();
+
+    app.get_current_user()
 }
 
 #[tauri::command]
@@ -149,7 +165,7 @@ fn main() {
     init_app(app);
 
     tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word, get_users, create_user, reload_files, import_dict])
+    .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word, get_users, create_user, reload_files, import_dict, set_current_user, get_current_user])
         .setup(|app| {
             let main_window = app.get_window("main").unwrap();
             main_window.set_decorations(false).unwrap();

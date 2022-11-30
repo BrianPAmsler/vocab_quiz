@@ -9,6 +9,8 @@ button {
     margin-top: 1.25vw;
     font-weight: 500;
     font-size: 4vw;
+    padding-right: 0.6em;
+    padding-left: 0.6em;
 }
 
 #scroll {
@@ -37,4 +39,12 @@ button {
     font-weight: 1000;
     line-height: 4vh;
     padding: 0;
+}
+
+.button {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    flex-direction: column;
 }
