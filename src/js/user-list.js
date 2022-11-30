@@ -33,5 +33,9 @@ function make_user_button(user) {
     buttons.push(button);
 }
 
+window.back = () => {
+    window.location.replace("index.html");
+}
+
 users.forEach(make_user_button);
 await update_buttons();

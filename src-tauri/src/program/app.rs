@@ -223,7 +223,11 @@ impl Application {
         let user = User::create(name);
         let user = user.save_to(&mut user_file)?;
 
+        let id = UserID { name: user.get_name().to_owned() };
+
         self.users.insert(user.get_name().to_owned(), user);
+
+        self.set_current_user(id).unwrap();
 
         Ok(())
     }
