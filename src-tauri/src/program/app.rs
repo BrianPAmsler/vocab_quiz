@@ -147,10 +147,14 @@ impl Application {
         for user_file in user_files {
             let mut file = File::open(user_file)?;
 
-            let user = User::load_from(&mut file, &self.dicts)?;
-            self.users.insert(user.get_name().to_owned(), user);
+            let r = User::load_from(&mut file, &self.dicts);
 
-            user_progress.add_progress(user_prog);
+            if r.is_ok() {
+                let user = r.unwrap();
+                self.users.insert(user.get_name().to_owned(), user);
+    
+                user_progress.add_progress(user_prog);
+            }
         }
 
         Ok(())
@@ -221,7 +225,7 @@ impl Application {
         let mut user_file = File::create(user_path)?;
 
         let user = User::create(name);
-        let user = user.save_to(&mut user_file)?;
+        user.save_to(&mut user_file)?;
 
         let id = UserID { name: user.get_name().to_owned() };
 

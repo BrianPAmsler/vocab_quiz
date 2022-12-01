@@ -1,8 +1,42 @@
 use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
 
-use serde::{Serialize, Deserialize};
+use struct_version_manager::version_macro::version_mod;
 
 use crate::{words::{Knowledge, Dictionary}, tools::u8_buffer::U8Buffer, error::Error};
+
+const USER_HEADER: &'static str = "USER_FILE";
+const USER_VERSION: &'static str = "0.1";
+
+#[version_mod(UserData)]
+mod user_data {
+
+    pub mod v1 {
+        use serde::{Serialize, Deserialize};
+        use struct_version_manager::version_macro::version;
+
+        use crate::{program::{User, user::encode_knowledge_data}, error::Error};
+
+        #[derive(Serialize, Deserialize)]
+        #[version("0.1")]
+        pub struct UserData {
+            pub name: String,
+            pub knowledge_data: Box<[u8]>
+        }
+        
+        impl UserData {
+            pub fn create(user: &User) -> Result<UserData, Error> {
+                let name = user.name.to_owned();
+                let knowledge_data = encode_knowledge_data(&user.knowledge)?;
+        
+                Ok(UserData { name, knowledge_data})
+            }
+        }
+    }
+}
+
+use user_data::v1::UserData;
+
+use super::filemanager;
 
 pub struct User {
     name: String,
@@ -38,29 +72,45 @@ impl User {
         &self.name
     }
 
-    pub fn save_to<T: Write>(self, writable: &mut T) -> Result<Self, Error> {
+    pub fn save_to<T: Write>(&self, writable: &mut T) -> Result<usize, Error> {
         let data = UserData::create(&self)?;
 
         let size_estimate = size_of::<UserData>() + size_of::<u8>() * data.knowledge_data.len();
     
         let mut alloc = vec![0u8; size_estimate];
         
-        let out = postcard::to_slice(&data, &mut alloc)?;
+        let size = postcard::to_slice(&data, &mut alloc)?.len();
+        alloc.truncate(size);
         
-        writable.write(out)?;
-        
-        Ok(self)
+        Ok(filemanager::save_file(writable, USER_HEADER.to_owned(), USER_VERSION.to_owned(), alloc.into_boxed_slice())?)
     }
 
     pub fn load_from<T: Read, I: Index<String, Output = Arc<Dictionary>>>(readable: &mut T, dict_container: &I) -> Result<Self, Error> {
-        let mut bytes = Vec::new();
-        readable.read_to_end(&mut bytes)?;
+        let mut file = filemanager::read_file(readable)?;
 
-        let mut data = postcard::from_bytes::<UserData>(&mut bytes)?;
+        if file.header != USER_HEADER {
+            return Err("Invalid File Header!")?;
+        }
 
-        let kw_data = decode_knowledge_data(&mut data.knowledge_data, dict_container)?;
+        match file.version.as_str() {
+            USER_VERSION => {
+                let mut data = postcard::from_bytes::<UserData>(&mut file.data)?;
+        
+                let kw_data = decode_knowledge_data(&mut data.knowledge_data, dict_container)?;
+        
+                Ok(User { name: data.name, knowledge: kw_data.into_vec() })
+            },
+            v => {
+                let knowl = match v {
+                    _ => {
+                        println!("{}", v);
+                        Err("Unknown File Version!")?
+                    }
+                };
 
-        Ok(User { name: data.name, knowledge: kw_data.into_vec() })
+                Ok(knowl)
+            }
+        }
     }
 }
 
@@ -117,19 +167,4 @@ fn decode_knowledge_data<I: Index<String, Output = Arc<Dictionary>>>(data: &mut 
     }
 
     Ok(out.into_boxed_slice())
-}
-
-#[derive(Serialize, Deserialize)]
-struct UserData {
-    name: String,
-    knowledge_data: Box<[u8]>
-}
-
-impl UserData {
-    pub fn create(user: &User) -> Result<UserData, Error> {
-        let name = user.name.to_owned();
-        let knowledge_data = encode_knowledge_data(&user.knowledge)?;
-
-        Ok(UserData { name, knowledge_data})
-    }
 }

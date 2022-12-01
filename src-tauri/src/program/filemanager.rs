@@ -25,7 +25,7 @@ pub fn read_file<R: Read>(readable: &mut R) -> Result<AppFile, Error> {
 pub fn save_file<W: Write>(writable: &mut W, header: String, version: String, data: Box<[u8]>) -> Result<usize, Error> {
     let size = size_of::<AppFile>() + data.len();
 
-    let file = AppFile { header, version: version.into() ,data, _pd: PhantomData };
+    let file = AppFile { header, version: version.into(), data, _pd: PhantomData };
 
     let mut out_data = vec![0u8; size];
     let out_data = postcard::to_slice(&file, &mut out_data)?;
