@@ -7,12 +7,17 @@ To add a dictionary you can import an xml file in the following format:
 <?xml version="1.0" ?>
 
 <dictionary>
-  <title>Title</title>
+  <title>Example Dictionary</title>
   <words>
     <word>
-      <text>Word text</text>
-      <pronunciation>Pronunciation</pronunciation>
-      <definition>Definition</definition>
+      <text>Apple</text>
+      <pronunciation>/ˈapəl/</pronunciation>
+      <definition>The round fruit of a tree of the rose family, which typically has thin red or green skin and crisp flesh. Many varieties have been developed as dessert or cooking fruit or for making cider.</definition>
+    </word>
+    <word>
+      <text>Orange</text>
+      <pronunciation>/ˈôrənj,ˈärənj/</pronunciation>
+      <definition>A round juicy citrus fruit with a tough bright reddish-yellow rind.</definition>
     </word>
   </words>
 <dictionary>
