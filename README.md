@@ -27,3 +27,11 @@ Note that it is assumed that the words are in order of commonality. The first wo
 Not much tbh
 ## Planned Features
 ill do this later...
+## Build
+```
+cargo tauri build
+```
+## Test
+```
+cargo tauri dev
+```
