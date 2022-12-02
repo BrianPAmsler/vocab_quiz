@@ -12,7 +12,7 @@ To add a dictionary you can import an xml file in the following format:
     <word>
       <text>Apple</text>
       <pronunciation>/ˈapəl/</pronunciation>
-      <definition>The round fruit of a tree of the rose family, which typically has thin red or green skin and crisp flesh. Many varieties have been developed as dessert or cooking fruit or for making cider.</definition>
+      <definition>The round fruit which typically has thin red or green skin and crisp flesh.</definition>
     </word>
     <word>
       <text>Orange</text>
