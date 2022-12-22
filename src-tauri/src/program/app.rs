@@ -1,9 +1,10 @@
-use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc, collections::HashMap};
+use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc, collections::HashMap, io::Write};
 
 use rand::Rng;
 use serde::{Serialize, Deserialize};
+use tauri::api::path::data_dir;
 
-use crate::{tools::dict_map::DictMap, error::Error, words::{Dictionary, WordID, FileVersion}};
+use crate::{tools::dict_map::DictMap, error::Error, words::{Dictionary, WordID, FileVersion}, constants::APP_DATA_FOLDER};
 
 use super::{user::User, Progress};
 
@@ -197,14 +198,21 @@ impl Application {
         out.into_boxed_slice()
     }
 
-    pub fn set_current_user(&mut self, user: UserID) -> Result<(), Error>{
-        if self.users.contains_key(&user.name) {
-            self.current_user = Some(user);
-
-            Ok(())
-        } else {
-            Err("Invalid User.")?
+    pub fn set_current_user(&mut self, user: Option<UserID>) {
+        if user.is_some() {
+            let mut last_user_path = data_dir().unwrap();
+            last_user_path.push(APP_DATA_FOLDER);
+            last_user_path.push("lastuser");
+    
+            let r = File::create(last_user_path);
+            if r.is_ok() {
+                let mut f = r.unwrap();
+    
+                f.write(user.as_ref().unwrap().name.as_bytes()).unwrap();
+            }
         }
+
+        self.current_user = user;
     }
 
     pub fn get_current_user(&self) -> Option<UserID> {
@@ -231,7 +239,7 @@ impl Application {
 
         self.users.insert(user.get_name().to_owned(), user);
 
-        self.set_current_user(id).unwrap();
+        self.set_current_user(Some(id));
 
         Ok(())
     }
@@ -242,5 +250,13 @@ impl Application {
 
     pub fn get_dict_dir(&self) -> PathBuf {
         self.dict_dir.clone()
+    }
+
+    pub fn get_user_id(&self, name: String) -> Option<UserID> {
+        if self.users.contains_key(&name) {
+            Some(UserID { name })
+        } else {
+            None
+        }
     }
 }

@@ -10,7 +10,7 @@ mod program;
 mod tools;
 mod error;
 
-use std::{fs::{create_dir_all, File}, sync::{Mutex, MutexGuard}, path::PathBuf};
+use std::{fs::{create_dir_all, File}, sync::{Mutex, MutexGuard}, path::PathBuf, io::Read};
 
 use constants::APP_DATA_FOLDER;
 use error::Error;
@@ -128,7 +128,7 @@ fn set_current_user(user: UserID) -> Result<(), String> {
     let mut mtx = get_app();
     let app = mtx.as_mut().unwrap();
 
-    Ok(app.set_current_user(user)?)
+    Ok(app.set_current_user(Some(user)))
 }
 
 #[tauri::command]
@@ -162,8 +162,21 @@ fn main() {
 
     let mut app = Application::new(user_path, dict_path).unwrap();
     app.load(None).unwrap();
-    init_app(app);
 
+    let last_user_path = {let mut t = base_path.clone(); t.push("lastuser"); t};
+
+    let last_user = if last_user_path.exists() && last_user_path.is_file() {
+        let mut file = File::open(last_user_path).unwrap();
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes).unwrap();
+
+        app.get_user_id(String::from_utf8(bytes).unwrap())
+    } else {
+        None
+    };
+
+    app.set_current_user(last_user);
+    init_app(app);
     tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word, get_users, create_user, reload_files, import_dict, set_current_user, get_current_user])
         .setup(|app| {

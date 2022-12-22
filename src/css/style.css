@@ -26,6 +26,7 @@ body {
   align-items: center;
   text-align: center;
 }
+
 .container {
   height: 100%;
   width: fit-content;
@@ -34,6 +35,17 @@ body {
   justify-content: space-between;
   align-items: stretch;
   text-align: center;
+}
+
+.top-right {
+  /* height: 100%; */
+  display: flex;
+  flex-direction: row;
+  justify-content: right;
+  align-items: flex-start;
+  text-align: center;
+  /* pointer-events: none; */
+  /* background-color: #ffffff25; */
 }
 
 .top-bar {
@@ -168,6 +180,17 @@ button {
   margin-top: 5vh;
   margin-bottom: 5vh;
   font-size: 8vh;
+}
+
+#floating {
+  width: 100%;
+  height: 100%;
+  margin-top: 30px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: none;
 }
 
 @media (prefers-color-scheme: dark) {

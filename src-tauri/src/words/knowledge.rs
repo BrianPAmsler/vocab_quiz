@@ -1,8 +1,9 @@
-use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
+use core::panic;
+use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc, collections::{BTreeMap, BTreeSet}};
 
 use chrono::{DateTime, Utc, NaiveDateTime};
 use rand::Rng;
-use serde::{Serialize, Deserialize, de::Visitor, Deserializer};
+use serde::{Serialize, Deserialize, de::Visitor, Deserializer, Serializer};
 
 use struct_version_manager::version_macro::version_mod;
 
@@ -11,7 +12,9 @@ use crate::{error::Error, tools::crypt_string::PermutedString, program::filemana
 use super::{WordID, Dictionary};
 
 const KNOW_HEADER: &'static str = "KNOWLEDGEDATA";
-const KNOW_VERSION: &'static str = "0.1";
+const KNOW_VERSION: &'static str = "0.2";
+
+const MIN_HALF_LIFE: f32 = 10.0;
 
 struct TimeVisitor;
 
@@ -43,32 +46,60 @@ impl<'de> Visitor<'de> for TimeVisitor {
     }
 }
 
+fn serialize_time<S: Serializer>(time: &Option<DateTime<Utc>>, serializer: S) -> Result<S::Ok, S::Error> {
+    match time {
+        Some(t) => {
+            serializer.serialize_some(&t.timestamp())
+        },
+        None => {
+            serializer.serialize_none()
+        }
+    }
+}
+
+fn deserialize_time<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error> {
+    deserializer.deserialize_option(TimeVisitor)
+}
+
 #[version_mod(WordKnowledge)]
 mod word_knowledge {
+    pub mod v0_2 {
+        use chrono::{DateTime, Utc};
+        use struct_version_manager::version_macro::version;
+        use serde::{Serialize, Deserialize};
+
+        use super::super::serialize_time;
+        use super::super::deserialize_time;
+
+        use crate::words::WordID;
+
+        #[derive(Clone, Debug, Serialize, Deserialize)]
+        #[version("0.2")]
+        pub struct WordKnowledge {
+            pub word_id: WordID,
+            #[serde(serialize_with = "serialize_time", deserialize_with = "deserialize_time")]
+            pub last_practice: Option<DateTime<Utc>>,
+            pub half_life: f32,
+            pub (in super::super) _pv: ()
+        }
+    }
+
     pub mod v0_1 {
         use chrono::{DateTime, Utc};
-        use serde::{Serialize, Deserialize, Serializer, Deserializer};
+        use serde::{Serialize, Deserialize};
+        use struct_version_manager::convert::ConvertTo;
+        use struct_version_manager::version_macro::converts_to;
         use struct_version_manager::version_macro::version;
 
-        use crate::words::{WordID, knowledge::TimeVisitor};
+        use crate::words::knowledge::MIN_HALF_LIFE;
+        use crate::words::{WordID};
 
-        fn serialize_time<S: Serializer>(time: &Option<DateTime<Utc>>, serializer: S) -> Result<S::Ok, S::Error> {
-            match time {
-                Some(t) => {
-                    serializer.serialize_some(&t.timestamp())
-                },
-                None => {
-                    serializer.serialize_none()
-                }
-            }
-        }
-        
-        fn deserialize_time<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<DateTime<Utc>>, D::Error> {
-            deserializer.deserialize_option(TimeVisitor)
-        }
+        use super::super::serialize_time;
+        use super::super::deserialize_time;
 
         #[derive(Clone, Debug, Serialize, Deserialize)]
         #[version("0.1")]
+        #[converts_to("0.2")]
         pub struct WordKnowledge {
             pub word_id: WordID,
             #[serde(serialize_with = "serialize_time", deserialize_with = "deserialize_time")]
@@ -78,14 +109,20 @@ mod word_knowledge {
             pub reinforcement_level: u32,
             pub (in super::super) _pv: ()
         }
+
+        impl ConvertTo<super::v0_2::WordKnowledge> for WordKnowledge {
+            fn convert_to(self) -> super::v0_2::WordKnowledge {
+                super::v0_2::WordKnowledge { word_id: self.word_id, last_practice: self.last_practice, half_life: MIN_HALF_LIFE, _pv: () }
+            }
+        }
     }
 }
 
-pub use word_knowledge::v0_1::WordKnowledge;
+pub use word_knowledge::v0_2::WordKnowledge;
 
 pub struct Knowledge {
     dict: Arc<Dictionary>,
-    knowledge: Box<[WordKnowledge]>,
+    knowledge: Box<[WordKnowledge]>
 }
 
 #[derive(Serialize, Deserialize)]
@@ -100,7 +137,7 @@ impl Knowledge {
         knowledge.reserve(dict.words.len());
 
         for id in dict.get_word_ids().as_ref() {
-            let k = WordKnowledge { word_id: *id, last_practice: None, confidence_score: 0, last_award: 0, reinforcement_level: 0, _pv: () };
+            let k = WordKnowledge { word_id: *id, last_practice: None, half_life: MIN_HALF_LIFE, _pv: () };
 
             knowledge.push(k);
         }
@@ -133,9 +170,7 @@ impl Knowledge {
         let mut rng = rand::thread_rng();
         for k in self.knowledge.as_mut() {
             k.last_practice = Some(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp_opt(rng.gen::<u32>() as i64, 0).unwrap(), Utc).into());
-            k.confidence_score = rng.gen();
-            k.last_award = rng.gen();
-            k.reinforcement_level = rng.gen();
+            k.half_life = rng.gen_range(MIN_HALF_LIFE..100.0);
         }
     }
 
@@ -163,6 +198,22 @@ impl Knowledge {
             },
             v => {
                 let knowl = match v {
+                    "0.1" => {
+                        let data = &mut file.data[..];
+                
+                        let know_data: KnowledgeData = postcard::from_bytes(&data)?;
+        
+                        let dict = container.index(know_data.dict_title.to_string()).clone();
+                        let knowledge: Box<[word_knowledge::v0_1::WordKnowledge]> = postcard::from_bytes(&know_data.knowledge_data)?;
+                        // Boxed slices are dumb and wont let you take ownership with an iterator, so it must be converted to vec first.
+                        let knowledge = knowledge.to_vec();
+
+                        let knowledge: Box<[WordKnowledge]> = knowledge.into_iter().map(|x| x.upgrade()).collect();
+
+                        println!("Converted from 0.1 to 0.2!");
+                
+                        Knowledge { dict: dict.clone(), knowledge}
+                    },
                     _ => {
                         println!("{}", v);
                         Err("Unknown File Version!")?
@@ -174,18 +225,37 @@ impl Knowledge {
         }
     }
 
-    pub fn practice(&mut self, word: WordID, award: i32) {
+    pub fn practice(&mut self, word: WordID, correct: bool) {
         let i: usize = word.into();
         let info = &mut self.knowledge[i];
-
+        
+        let lp = info.last_practice;
         info.last_practice = Some(Utc::now().into());
-        info.last_award = award;
-        info.confidence_score += award;
 
-        if award > 0 {
-            info.reinforcement_level += 1;
-        } else if award < 0 && info.reinforcement_level > 0 {
-            info.reinforcement_level -= 1;
+        match lp {
+            Some(time) => {
+                let time_delta = info.last_practice.unwrap() - time;
+                // > 1 if practeced after expected half-life, < 1 if practiced before
+                let time_factor = time_delta.num_minutes() as f32 / info.half_life;
+
+                // A 0 time factor will result in no change, a 1 time factor will change by a factor of 2
+                let mut multiplier = 1.0 + 1.0 * time_factor;
+
+                // If the answer was wrong, take reciprocal
+                if !correct {
+                    multiplier = 1.0 / multiplier;
+                }
+                
+                info.half_life = f32::max(info.half_life * multiplier, MIN_HALF_LIFE);
+            },
+            None => {
+                if correct {
+                    // Set half-life to one week if user alerady knows word the first time seeing it.
+                    info.half_life = 60.0 * 24.0 * 7.0;
+                } else {
+                    info.half_life = MIN_HALF_LIFE;
+                }
+            }
         }
     }
 
