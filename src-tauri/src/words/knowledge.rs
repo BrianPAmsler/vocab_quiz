@@ -1,5 +1,4 @@
-use core::panic;
-use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc, collections::{BTreeMap, BTreeSet}};
+use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
 
 use chrono::{DateTime, Utc, NaiveDateTime};
 use rand::Rng;
@@ -242,9 +241,7 @@ impl Knowledge {
                 let mut multiplier = 1.0 + 1.0 * time_factor;
 
                 // If the answer was wrong, take reciprocal
-                if !correct {
-                    multiplier = 1.0 / multiplier;
-                }
+                if !correct { multiplier = multiplier.recip(); }
                 
                 info.half_life = f32::max(info.half_life * multiplier, MIN_HALF_LIFE);
             },
