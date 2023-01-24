@@ -124,6 +124,48 @@ fn get_users() -> Box<[UserID]> {
 }
 
 #[tauri::command]
+fn start_practice_session() -> bool {
+    let mut mtx = get_app();
+    let app = mtx.as_mut().unwrap();
+
+    let r = app.start_practice_session();
+
+    if !r {
+        let words = app.get_active_words();
+
+        app.set_active_words(words + 20);
+
+        return app.start_practice_session()
+    }
+
+    true
+}
+
+#[tauri::command]
+fn get_remaining_words() -> usize {
+    let mtx = get_app();
+    let app = mtx.as_ref().unwrap();
+
+    app.get_session_len()
+}
+
+#[tauri::command]
+fn practice_current_word(result: bool) {
+    let mut mtx = get_app();
+    let app = mtx.as_mut().unwrap();
+
+    app.practice_current_word(result);
+}
+
+#[tauri::command]
+fn conclude_session() {
+    let mut mtx = get_app();
+    let app = mtx.as_mut().unwrap();
+
+    app.conclude_session();
+}
+
+#[tauri::command]
 fn set_current_user(user: UserID) -> Result<(), String> {
     let mut mtx = get_app();
     let app = mtx.as_mut().unwrap();
@@ -137,6 +179,16 @@ fn get_current_user() -> Option<UserID> {
     let app = mtx.as_ref().unwrap();
 
     app.get_current_user()
+}
+
+#[tauri::command]
+fn save_current_user() -> Result<(), String> {
+    let mut mtx = get_app();
+    let app = mtx.as_mut().unwrap();
+
+    app.save_current_user()?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -178,7 +230,7 @@ fn main() {
     app.set_current_user(last_user);
     init_app(app);
     tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word, get_users, create_user, reload_files, import_dict, set_current_user, get_current_user])
+    .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word, get_users, create_user, reload_files, import_dict, set_current_user, get_current_user, start_practice_session, practice_current_word, get_remaining_words, conclude_session, save_current_user])
         .setup(|app| {
             let main_window = app.get_window("main").unwrap();
             main_window.set_decorations(false).unwrap();

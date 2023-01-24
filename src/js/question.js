@@ -18,18 +18,29 @@ def.innerHTML = "Definition:<br>" + word_obj.definition;
 
 word.style.display = "";
 
-async function next() {
-    await invoke("pick_next_word", {});
+async function next(result) {
+    await invoke("practice_current_word", {result: result});
 
-    window.location.replace("question.html");
+    let count = await invoke("get_remaining_words");
+
+    if (count > 0) {
+        await invoke("pick_next_word");
+
+        window.location.replace("question.html");
+    } else {
+        await invoke("conclude_session");
+        await invoke("save_current_user");
+
+        window.location.replace("index.html");
+    }
 }
 
 function yes() {
-    next();
+    next(true);
 }
 
 function no() {
-    next();
+    next(false);
 }
 
 function check() {

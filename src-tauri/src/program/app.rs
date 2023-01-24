@@ -1,10 +1,11 @@
-use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc, collections::HashMap, io::Write};
+use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc, collections::HashMap, io::Write, ops::Index, ptr};
 
+use chrono::{Utc, DateTime};
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 use tauri::api::path::data_dir;
 
-use crate::{tools::dict_map::DictMap, error::Error, words::{Dictionary, WordID, FileVersion}, constants::APP_DATA_FOLDER};
+use crate::{tools::{dict_map::DictMap, weighted_list::pick_by_weight}, error::Error, words::{Dictionary, WordID, FileVersion, Knowledge}, constants::APP_DATA_FOLDER};
 
 use super::{user::User, Progress};
 
@@ -43,6 +44,97 @@ impl UserID {
     }
 }
 
+struct PracticeSession {
+    word_pool: Vec<WordID>,
+    knowledge: Knowledge,
+    start_time: DateTime<Utc>
+}
+
+impl PracticeSession {
+    fn new(dict: &Dictionary, knowledge: Knowledge, score_max: u32) -> PracticeSession {
+        let start_time = Utc::now();
+        let potential_word_pool: Vec<(f32, WordID)> = dict.get_words_leq_score(score_max).to_vec().into_iter().filter_map(|x| {
+            let k = knowledge.get_word_knowledge(x);
+            let pv = k.calculate_p_value(start_time);
+
+            if pv < 0.6 {
+                Some((1.0 - pv, x))
+            } else {
+                None
+            }
+        }).collect();
+
+        let mut word_pool;
+        if potential_word_pool.len() <= 20 {
+            word_pool = potential_word_pool.into_iter().map(|x| x.1).collect();
+        } else {
+            word_pool = Vec::new();
+
+            let mut pool = potential_word_pool.clone();
+
+            if pool.len() < 100 {
+                // If pool is small, only consider p value
+                for _ in 0..20 {
+                    let choice = {
+                        let i = pick_by_weight(&pool[..]);
+                        pool.remove(i)
+                    };
+
+                    word_pool.push(choice.1);
+                }
+            } else {
+                // If pool is big, also consider word obscurity
+                for _ in 0..20 {
+                    // pick 10
+                    let mut picked = Vec::new();
+                    while picked.len() < 10 {
+                        let choice = pick_by_weight(&pool[..]);
+
+                        if !picked.contains(&choice) {
+                            picked.push(choice);
+                        }
+                    }
+        
+                    // re-weight based on word obscurity
+                    let max_obs = picked.iter().map(|x| {
+                        let w = dict.get_word_from_id(pool[*x].1);
+
+                        w.obscurity
+                    }).max().unwrap();
+                    let picked: Vec<(f32, WordID)> = picked.iter().map(|x| {
+                        let id = pool[*x].1;
+                        let w = dict.get_word_from_id(id);
+                        
+                        ((max_obs - w.obscurity + 1) as f32, id)
+                    }).collect();
+
+                    let choice = pick_by_weight(&picked[..]);
+                    word_pool.push(pool.remove(choice).1);
+                }
+            }
+        }
+
+        PracticeSession { word_pool, knowledge, start_time }
+    }
+
+    fn pick_word(&mut self) -> WordID {
+        let mut rng = rand::thread_rng();
+
+        let choice = rng.gen_range(0..self.word_pool.len());
+
+        self.word_pool.remove(choice)
+    }
+
+    fn get_pool_size(&self) -> usize {
+        self.word_pool.len()
+    }
+
+    fn recover_knowledge(self) -> Knowledge {
+        self.knowledge
+    }
+
+}
+
 pub struct Application {
     user_dir: PathBuf,
     dict_dir: PathBuf,
@@ -50,6 +142,7 @@ pub struct Application {
     dicts: DictMap,
     current_dict: Option<DictID>,
     current_user: Option<UserID>,
+    practice_session: Option<PracticeSession>,
     current_word: Option<WordID>
 }
 
@@ -60,7 +153,7 @@ impl Application {
         let users = HashMap::<String, User>::new();
         let dicts = DictMap::new();
 
-        Ok(Application { user_dir , dict_dir, users, dicts, current_dict: None, current_user: None, current_word: None })
+        Ok(Application { user_dir , dict_dir, users, dicts, current_dict: None, current_user: None, practice_session: None, current_word: None })
     }
 
     pub fn load(&mut self, tracker: Option<Progress>) -> Result<(), Error> {
@@ -171,20 +264,119 @@ impl Application {
         self.current_dict = Some(dict);
     }
 
-    pub fn pick_next_word(&mut self) {
-        let dict = self.dicts[self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
-        let ids = dict.get_words_leq_score(100);
-        
-        let mut rng = rand::thread_rng();
-        let t = rng.gen_range(0..ids.len());
+    pub fn start_practice_session(&mut self) -> bool {
+        if self.current_user.is_none() || self.current_dict.is_none() {
+            return false;
+        }
 
-        self.current_word = Some(ids[t]);
+        let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
+        let dict = &self.dicts[self.current_dict.as_ref().unwrap().name.clone()];
+
+        let knowl = {
+            let mut t = ptr::null();
+            for k in user.get_knowledge() {
+                if Arc::ptr_eq(&k.get_dict(), dict) {
+                    t = k as *const Knowledge;
+                }
+            }
+
+            user.take_knowledge(t).unwrap_or(Knowledge::create(dict.clone()))
+        };
+
+        let s = knowl.get_active_words() as u32;
+        let sesh = PracticeSession::new(&dict, knowl, s);
+
+        if sesh.get_pool_size() == 0 {
+            user.add_knowledge(sesh.recover_knowledge());
+            return false;
+        }
+
+        self.practice_session = Some(sesh);
+
+        true
+    }
+
+    pub fn get_active_words(&self) -> usize {
+        if self.current_user.is_none() || self.current_dict.is_none() {
+            return 0;
+        }
+
+        let user = self.users.get(&self.current_user.as_ref().unwrap().name).unwrap();
+        let dict = &self.dicts[self.current_dict.as_ref().unwrap().name.clone()];
+
+        let knowl = {
+            let mut t = None;
+            for k in user.get_knowledge() {
+                if Arc::ptr_eq(&k.get_dict(), dict) {
+                    t = Some(k);
+                }
+            }
+
+            t
+        };
+
+        match knowl {
+            Some(k) => {
+                k.get_active_words()
+            },
+            None => 0
+        }
+    }
+
+    pub fn set_active_words(&mut self, words: usize) {
+        if self.current_user.is_none() || self.current_dict.is_none() {
+            return;
+        }
+
+        let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
+        let dict = &self.dicts[self.current_dict.as_ref().unwrap().name.clone()];
+
+        let mut knowl = {
+            let mut t = ptr::null();
+            for k in user.get_knowledge() {
+                if Arc::ptr_eq(&k.get_dict(), dict) {
+                    t = k as *const Knowledge;
+                }
+            }
+
+            user.take_knowledge(t).unwrap_or(Knowledge::create(dict.clone()))
+        };
+        
+        knowl.set_active_words(words);
+        user.add_knowledge(knowl);
+    }
+
+    pub fn pick_next_word(&mut self) {
+        if self.practice_session.is_none() {
+            return;
+        }
+
+        self.current_word = Some(self.practice_session.as_mut().unwrap().pick_word());
     }
 
     pub fn get_current_word(&self) -> Option<crate::words::for_frontend::Word> {
         let dict = self.dicts[self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
 
         Some(dict.get_word_from_id(self.current_word?).clone().into())
+    }
+
+    pub fn practice_current_word(&mut self, result: bool) {
+        println!("test");
+        let sesh = self.practice_session.as_mut().unwrap();
+
+        sesh.knowledge.practice(self.current_word.unwrap(), result);
+    }
+
+    pub fn get_session_len(&self) -> usize {
+        self.practice_session.as_ref().unwrap().get_pool_size()
+    }
+
+    pub fn conclude_session(&mut self) {
+        let kw = self.practice_session.take().unwrap().recover_knowledge();
+
+        let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
+
+        user.add_knowledge(kw);
     }
 
     pub fn get_users(&self) -> Box<[UserID]> {
@@ -213,6 +405,19 @@ impl Application {
         }
 
         self.current_user = user;
+    }
+
+    pub fn save_current_user(&mut self) -> Result<(), Error> {
+        let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
+
+        let mut user_path = PathBuf::new();
+        user_path.push(&self.user_dir);
+        user_path.push(user.get_name().to_owned() + ".usr");
+        let mut user_file = File::create(user_path)?;
+
+        user.save_to(&mut user_file)?;
+
+        Ok(())
     }
 
     pub fn get_current_user(&self) -> Option<UserID> {

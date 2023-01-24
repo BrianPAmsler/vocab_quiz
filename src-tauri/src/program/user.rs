@@ -52,11 +52,11 @@ impl User {
         self.knowledge.push(knowledge);
     }
 
-    pub fn take_knowledge(&mut self, knowledge: &Knowledge) -> Option<Knowledge> {
+    pub fn take_knowledge(&mut self, knowledge: *const Knowledge) -> Option<Knowledge> {
         for i in 0..self.knowledge.len() {
             let kw = &self.knowledge[i] as *const Knowledge;
 
-            if kw == knowledge as *const Knowledge {
+            if kw == knowledge {
                 return Some(self.knowledge.remove(i));
             }
         }

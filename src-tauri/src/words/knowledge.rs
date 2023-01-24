@@ -2,11 +2,11 @@ use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
 
 use chrono::{DateTime, Utc, NaiveDateTime};
 use rand::Rng;
-use serde::{Serialize, Deserialize, de::Visitor, Deserializer, Serializer};
+use serde::{de::Visitor, Deserializer, Serializer};
 
 use struct_version_manager::version_macro::version_mod;
 
-use crate::{error::Error, tools::crypt_string::PermutedString, program::filemanager};
+use crate::{error::Error, program::filemanager};
 
 use super::{WordID, Dictionary};
 
@@ -81,53 +81,36 @@ mod word_knowledge {
             pub half_life: f32,
             pub (in super::super) _pv: ()
         }
-    }
 
-    pub mod v0_1 {
-        use chrono::{DateTime, Utc};
-        use serde::{Serialize, Deserialize};
-        use struct_version_manager::convert::ConvertTo;
-        use struct_version_manager::version_macro::converts_to;
-        use struct_version_manager::version_macro::version;
-
-        use crate::words::knowledge::MIN_HALF_LIFE;
-        use crate::words::{WordID};
-
-        use super::super::serialize_time;
-        use super::super::deserialize_time;
-
-        #[derive(Clone, Debug, Serialize, Deserialize)]
-        #[version("0.1")]
-        #[converts_to("0.2")]
-        pub struct WordKnowledge {
-            pub word_id: WordID,
-            #[serde(serialize_with = "serialize_time", deserialize_with = "deserialize_time")]
-            pub last_practice: Option<DateTime<Utc>>,
-            pub confidence_score: i32,
-            pub last_award: i32,
-            pub reinforcement_level: u32,
-            pub (in super::super) _pv: ()
-        }
-
-        impl ConvertTo<super::v0_2::WordKnowledge> for WordKnowledge {
-            fn convert_to(self) -> super::v0_2::WordKnowledge {
-                super::v0_2::WordKnowledge { word_id: self.word_id, last_practice: self.last_practice, half_life: MIN_HALF_LIFE, _pv: () }
-            }
+        #[derive(Serialize, Deserialize)]
+        #[version("0.2")]
+        pub struct KnowledgeData {
+            pub dict_title: crate::tools::crypt_string::PermutedString,
+            pub active_words: usize,
+            pub knowledge_data: Box<[u8]>,
         }
     }
 }
 
 pub use word_knowledge::v0_2::WordKnowledge;
+use word_knowledge::v0_2::KnowledgeData;
+
+impl WordKnowledge {
+    pub fn calculate_p_value(&self, practice_time: DateTime<Utc>) -> f32 {
+        if self.last_practice.is_none() {
+            return 0.0;
+        }
+
+        let delta = (practice_time - self.last_practice.unwrap()).num_seconds() as f32 / 60.0;
+
+        2.0f32.powf((-delta) / self.half_life)
+    }
+}
 
 pub struct Knowledge {
     dict: Arc<Dictionary>,
-    knowledge: Box<[WordKnowledge]>
-}
-
-#[derive(Serialize, Deserialize)]
-struct KnowledgeData {
-    dict_title: PermutedString,
-    knowledge_data: Box<[u8]>,
+    knowledge: Box<[WordKnowledge]>,
+    active_words: usize
 }
 
 impl Knowledge {
@@ -141,7 +124,7 @@ impl Knowledge {
             knowledge.push(k);
         }
 
-        Knowledge { dict, knowledge: knowledge.into_boxed_slice() }
+        Knowledge { dict, knowledge: knowledge.into_boxed_slice(), active_words: 0 }
     }
 
     pub fn estimate_serialized_size(&self) -> usize {
@@ -154,7 +137,7 @@ impl Knowledge {
         let kw_size = postcard::to_slice(&self.knowledge, &mut kw_data)?.len();
         kw_data.truncate(kw_size);
 
-        let data = KnowledgeData { dict_title: self.dict.title.clone().into(), knowledge_data: kw_data.into_boxed_slice() };
+        let data = KnowledgeData { dict_title: self.dict.title.clone().into(), knowledge_data: kw_data.into_boxed_slice(), active_words: self.active_words };
 
         let mut alloc = vec![0u8; size_estimate];
 
@@ -193,26 +176,10 @@ impl Knowledge {
                 let dict = container.index(know_data.dict_title.to_string()).clone();
                 let knowledge = postcard::from_bytes(&know_data.knowledge_data)?;
         
-                Ok(Knowledge { dict: dict.clone(), knowledge })
+                Ok(Knowledge { dict: dict.clone(), knowledge, active_words: know_data.active_words })
             },
             v => {
                 let knowl = match v {
-                    "0.1" => {
-                        let data = &mut file.data[..];
-                
-                        let know_data: KnowledgeData = postcard::from_bytes(&data)?;
-        
-                        let dict = container.index(know_data.dict_title.to_string()).clone();
-                        let knowledge: Box<[word_knowledge::v0_1::WordKnowledge]> = postcard::from_bytes(&know_data.knowledge_data)?;
-                        // Boxed slices are dumb and wont let you take ownership with an iterator, so it must be converted to vec first.
-                        let knowledge = knowledge.to_vec();
-
-                        let knowledge: Box<[WordKnowledge]> = knowledge.into_iter().map(|x| x.upgrade()).collect();
-
-                        println!("Converted from 0.1 to 0.2!");
-                
-                        Knowledge { dict: dict.clone(), knowledge}
-                    },
                     _ => {
                         println!("{}", v);
                         Err("Unknown File Version!")?
@@ -264,5 +231,13 @@ impl Knowledge {
 
     pub fn get_dict(&self) -> Arc<Dictionary> {
         self.dict.clone()
+    }
+
+    pub fn get_active_words(&self) -> usize {
+        self.active_words
+    }
+
+    pub fn set_active_words(&mut self, amount: usize) {
+        self.active_words = amount;
     }
 }

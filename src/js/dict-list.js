@@ -10,9 +10,13 @@ dicts.sort();
 
 async function pick_dict(dict) {
     await invoke("set_dict", {dict: dict});
-    await invoke("pick_next_word", {});
+    
+    let r = await invoke("start_practice_session")
 
-    window.location.replace("question.html");
+    if (r) {
+        await invoke("pick_next_word", {});
+        window.location.replace("question.html");
+    }
 }
 
 let plus = document.getElementById("add-dict");
