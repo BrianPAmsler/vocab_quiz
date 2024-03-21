@@ -13,9 +13,9 @@ pub fn pick_by_weight<T>(list: &[(f32, T)]) -> usize {
     let mut rng = rand::thread_rng();
     let mut weight = rng.gen_range(0.0..total_weight);
     let mut i = 0;
-    while weight > list[i].0 {
-        i += 1;
+    while i < list.len() && weight > list[i].0 {
         weight -= list[i].0;
+        i += 1;
     }
 
     i

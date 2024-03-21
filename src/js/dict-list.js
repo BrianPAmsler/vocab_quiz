@@ -21,7 +21,7 @@ async function pick_dict(dict) {
 
 let plus = document.getElementById("add-dict");
 console.log(plus.clientHeight);
-function make_dict_button(dict) {
+function make_dict_button(dict, count=0) {
     let button = document.createElement("button");
     let div = document.createElement("div");
     button.appendChild(div);
@@ -31,12 +31,23 @@ function make_dict_button(dict) {
         await pick_dict(dict);
     }
 
+    console.log("count: " + count);
+    if (count > 0) {
+        let notification_count = document.createElement("div");
+        button.appendChild(notification_count);
+        notification_count.id = "notification-count";
+        notification_count.innerText = count;
+    }
+
     list.insertBefore(button, plus);
     
     fit(div, 4);
 }
 
-dicts.forEach(make_dict_button);
+dicts.forEach(async (dict) => {
+    let count = await invoke("get_pool_size", {dict: dict});
+    make_dict_button(dict, count);
+});
 
 async function load_dict() {
     let files = await open({

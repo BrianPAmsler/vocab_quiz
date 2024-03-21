@@ -92,6 +92,14 @@ fn get_dict_list() -> Box<[DictID]> {
 }
 
 #[tauri::command]
+fn get_pool_size(dict: DictID) -> usize {
+    let mtx = get_app();
+    let app = mtx.as_ref().unwrap();
+
+    app.get_pool_size(dict)
+}
+
+#[tauri::command]
 fn set_dict(dict: DictID) {
     let mut mtx = get_app();
     let app = mtx.as_mut().unwrap();
@@ -230,7 +238,7 @@ fn main() {
     app.set_current_user(last_user);
     init_app(app);
     tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word, get_users, create_user, reload_files, import_dict, set_current_user, get_current_user, start_practice_session, practice_current_word, get_remaining_words, conclude_session, save_current_user])
+    .invoke_handler(tauri::generate_handler![get_dict_list, set_dict, pick_next_word, get_current_word, get_users, create_user, reload_files, import_dict, set_current_user, get_current_user, start_practice_session, practice_current_word, get_remaining_words, conclude_session, save_current_user, get_pool_size])
         .setup(|app| {
             let main_window = app.get_window("main").unwrap();
             main_window.set_decorations(false).unwrap();

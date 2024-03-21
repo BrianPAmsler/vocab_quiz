@@ -193,6 +193,23 @@ button {
   pointer-events: none;
 }
 
+#notification-count {
+  background-color: red;
+  position: absolute;
+  font-size: 0.5em;
+  top: calc(0% - 1em);
+  left: calc(100% - 1em);
+  border-radius: 1em;
+  width: 2em;
+  height: 2em;
+  z-index: 10;
+  
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  flex-direction: column;
+}
+
 @media (prefers-color-scheme: dark) {
   #bg {
     color: #f6f6f6;

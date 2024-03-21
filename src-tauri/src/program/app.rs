@@ -260,6 +260,39 @@ impl Application {
         list
     }
 
+    pub fn get_pool_size(&self, dict: DictID) -> usize {
+        let dict = &self.dicts[dict.name];
+        let user = self.users.get(&self.current_user.as_ref().unwrap().name).unwrap();
+        
+        let knowl = {
+            let mut t = None;
+            for k in user.get_knowledge() {
+                if Arc::ptr_eq(&k.get_dict(), dict) {
+                    t = Some(k);
+                }
+            }
+
+            match t {
+                Some(t) => t,
+                None => return 0
+            }
+        };
+
+        let score_max = knowl.get_active_words() as u32;
+        let start_time = Utc::now();
+
+        dict.get_words_leq_score(score_max).to_vec().into_iter().filter_map(|x| {
+            let k = knowl.get_word_knowledge(x);
+            let pv = k.calculate_p_value(start_time);
+
+            if pv < 0.6 {
+                Some((1.0 - pv, x))
+            } else {
+                None
+            }
+        }).collect::<Vec<_>>().len()
+    }
+
     pub fn set_dict(&mut self, dict: DictID) {
         self.current_dict = Some(dict);
     }
