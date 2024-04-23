@@ -201,7 +201,7 @@ impl Knowledge {
         match lp {
             Some(time) => {
                 let time_delta = info.last_practice.unwrap() - time;
-                // > 1 if practeced after expected half-life, < 1 if practiced before
+                // > 1 if practiced after expected half-life, < 1 if practiced before
                 let time_factor = time_delta.num_minutes() as f32 / info.half_life;
 
                 // A 0 time factor will result in no change, a 1 time factor will change by a factor of 2
@@ -214,8 +214,8 @@ impl Knowledge {
             },
             None => {
                 if correct {
-                    // Set half-life to one week if user alerady knows word the first time seeing it.
-                    info.half_life = 60.0 * 24.0 * 7.0;
+                    // Set half-life to two days if user alerady knows word the first time seeing it.
+                    info.half_life = 60.0 * 24.0 * 2.0;
                 } else {
                     info.half_life = MIN_HALF_LIFE;
                 }

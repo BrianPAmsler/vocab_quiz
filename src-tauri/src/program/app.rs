@@ -306,7 +306,7 @@ impl Application {
         let dict = &self.dicts[self.current_dict.as_ref().unwrap().name.clone()];
 
         let knowl = {
-            let mut t = ptr::null();
+            let mut t = std::ptr::null();
             for k in user.get_knowledge() {
                 if Arc::ptr_eq(&k.get_dict(), dict) {
                     t = k as *const Knowledge;
@@ -394,7 +394,6 @@ impl Application {
     }
 
     pub fn practice_current_word(&mut self, result: bool) {
-        println!("test");
         let sesh = self.practice_session.as_mut().unwrap();
 
         sesh.knowledge.practice(self.current_word.unwrap(), result);
