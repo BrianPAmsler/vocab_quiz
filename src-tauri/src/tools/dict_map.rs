@@ -22,6 +22,10 @@ impl DictMap {
     pub fn keys<'a>(&'a self) -> Keys<'a, String, Arc<Dictionary>> {
         self.map.keys()
     }
+
+    pub fn get(&self, index: &String) -> Option<&Arc<Dictionary>> {
+        self.map.get(index)
+    }
 }
 
 impl Default for DictMap {
@@ -30,11 +34,11 @@ impl Default for DictMap {
     }
 }
 
-impl Index<String> for DictMap {
+impl Index<&String> for DictMap {
     type Output = Arc<Dictionary>;
 
-    fn index(&self, index: String) -> &Self::Output {
-        self.map.index(&index)
+    fn index(&self, index: &String) -> &Self::Output {
+        self.map.index(index)
     }
 }
 

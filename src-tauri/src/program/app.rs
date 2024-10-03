@@ -261,7 +261,7 @@ impl Application {
     }
 
     pub fn get_pool_size(&self, dict: DictID) -> usize {
-        let dict = &self.dicts[dict.name];
+        let dict = &self.dicts[&dict.name];
         let user = self.users.get(&self.current_user.as_ref().unwrap().name).unwrap();
         
         let knowl = {
@@ -303,7 +303,7 @@ impl Application {
         }
 
         let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
-        let dict = &self.dicts[self.current_dict.as_ref().unwrap().name.clone()];
+        let dict = &self.dicts[&self.current_dict.as_ref().unwrap().name.clone()];
 
         let knowl = {
             let mut t = std::ptr::null();
@@ -335,7 +335,7 @@ impl Application {
         }
 
         let user = self.users.get(&self.current_user.as_ref().unwrap().name).unwrap();
-        let dict = &self.dicts[self.current_dict.as_ref().unwrap().name.clone()];
+        let dict = &self.dicts[&self.current_dict.as_ref().unwrap().name.clone()];
 
         let knowl = {
             let mut t = None;
@@ -362,7 +362,7 @@ impl Application {
         }
 
         let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
-        let dict = &self.dicts[self.current_dict.as_ref().unwrap().name.clone()];
+        let dict = &self.dicts[&self.current_dict.as_ref().unwrap().name.clone()];
 
         let mut knowl = {
             let mut t = ptr::null();
@@ -388,7 +388,7 @@ impl Application {
     }
 
     pub fn get_current_word(&self) -> Option<crate::words::for_frontend::Word> {
-        let dict = self.dicts[self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
+        let dict = self.dicts[&self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
 
         Some(dict.get_word_from_id(self.current_word?).clone().into())
     }

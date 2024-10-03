@@ -1,8 +1,8 @@
-use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
+use std::{collections::HashMap, io::{Read, Write}, mem::size_of, ops::Index, sync::Arc};
 
 use struct_version_manager::version_macro::version_mod;
 
-use crate::{words::{Knowledge, Dictionary}, tools::u8_buffer::U8Buffer, error::Error};
+use crate::{error::Error, tools::{dict_map::DictMap, u8_buffer::U8Buffer}, words::{Dictionary, Knowledge}};
 
 const USER_HEADER: &'static str = "USER_FILE";
 const USER_VERSION: &'static str = "0.1";
@@ -85,7 +85,7 @@ impl User {
         Ok(filemanager::save_file(writable, USER_HEADER.to_owned(), USER_VERSION.to_owned(), alloc.into_boxed_slice())?)
     }
 
-    pub fn load_from<T: Read, I: Index<String, Output = Arc<Dictionary>>>(readable: &mut T, dict_container: &I) -> Result<Self, Error> {
+    pub fn load_from<T: Read>(readable: &mut T, dict_container: &DictMap) -> Result<Self, Error> {
         let mut file = filemanager::read_file(readable)?;
 
         if file.header != USER_HEADER {
@@ -146,7 +146,7 @@ fn encode_knowledge_data(knowledge: &[Knowledge]) -> Result<Box<[u8]>, Error> {
     Ok(data.into_boxed_slice()) 
 }
 
-fn decode_knowledge_data<I: Index<String, Output = Arc<Dictionary>>>(data: &mut [u8], container: &I) -> Result<Box<[Knowledge]>, Error> {
+fn decode_knowledge_data(data: &mut [u8], container: &DictMap) -> Result<Box<[Knowledge]>, Error> {
     let (count, used) = {let t = postcard::take_from_bytes::<usize>(data)?; (t.0, data.len() - t.1.len())};
     let data = &mut data[used..];
 

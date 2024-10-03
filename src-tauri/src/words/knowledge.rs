@@ -1,4 +1,4 @@
-use std::{io::{Write, Read}, mem::size_of, ops::Index, sync::Arc};
+use std::{collections::HashMap, io::{Read, Write}, mem::size_of, ops::Index, sync::Arc};
 
 use chrono::{DateTime, Utc, NaiveDateTime};
 use rand::Rng;
@@ -6,7 +6,7 @@ use serde::{de::Visitor, Deserializer, Serializer};
 
 use struct_version_manager::version_macro::version_mod;
 
-use crate::{error::Error, program::filemanager};
+use crate::{error::Error, program::filemanager, tools::dict_map::DictMap};
 
 use super::{WordID, Dictionary};
 
@@ -156,10 +156,9 @@ impl Knowledge {
         }
     }
 
-    pub fn load_from<'a, T, I>(readable: &mut T, container: &I) -> Result<Knowledge, Error>
+    pub fn load_from<'a, T>(readable: &mut T, container: &DictMap) -> Result<Knowledge, Error>
     where
-        T: Read,
-        I: Index<String, Output = Arc<Dictionary>> {
+        T: Read {
         
         let mut file = filemanager::read_file(readable)?;
 
@@ -173,10 +172,10 @@ impl Knowledge {
         
                 let know_data: KnowledgeData = postcard::from_bytes(&data)?;
 
-                let dict = container.index(know_data.dict_title.to_string()).clone();
+                let dict = container.get(&know_data.dict_title.to_string()).ok_or("Dict not found!")?.clone();
                 let knowledge = postcard::from_bytes(&know_data.knowledge_data)?;
         
-                Ok(Knowledge { dict: dict.clone(), knowledge, active_words: know_data.active_words })
+                Ok(Knowledge { dict, knowledge, active_words: know_data.active_words })
             },
             v => {
                 let knowl = match v {
