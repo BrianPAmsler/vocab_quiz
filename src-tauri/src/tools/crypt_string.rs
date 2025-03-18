@@ -1,5 +1,4 @@
-use serde::{Serialize, de::Visitor, Deserialize};
-
+use serde::{de::Visitor, Deserialize, Serialize};
 
 fn encrypt_string(string: String) -> Box<[u8]> {
     let mut bytes = string.into_bytes().into_boxed_slice();
@@ -31,13 +30,13 @@ fn decrypt_string(mut string: Box<[u8]>) -> String {
 
     let first = &mut string[0];
     *first = *first | overflow;
-    
-    unsafe {String::from_utf8_unchecked(string.to_vec())}
+
+    unsafe { String::from_utf8_unchecked(string.to_vec()) }
 }
 
 #[derive(Debug, Clone)]
 pub struct PermutedString {
-    string: String
+    string: String,
 }
 
 impl PermutedString {
@@ -56,16 +55,17 @@ impl PermutedString {
 
 impl From<String> for PermutedString {
     fn from(string: String) -> Self {
-        Self {string}
+        Self { string }
     }
 }
 
 impl Serialize for PermutedString {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
-            let bytes = encrypt_string(self.string.to_owned());
-            serializer.serialize_bytes(&bytes)
+        S: serde::Serializer,
+    {
+        let bytes = encrypt_string(self.string.to_owned());
+        serializer.serialize_bytes(&bytes)
     }
 }
 struct EStrVisitor;
@@ -78,29 +78,33 @@ impl<'de> Visitor<'de> for EStrVisitor {
     }
 
     fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error, {
+    where
+        E: serde::de::Error,
+    {
         let string = decrypt_string(v.to_owned().into_boxed_slice());
-        Ok(PermutedString {string})
+        Ok(PermutedString { string })
     }
 
     fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error, {
+    where
+        E: serde::de::Error,
+    {
         let string = decrypt_string(v.into_boxed_slice());
         Ok(PermutedString { string })
     }
 
     fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error, {
-            let string = decrypt_string(v.to_owned().into_boxed_slice());
-            Ok(PermutedString {string})
+    where
+        E: serde::de::Error,
+    {
+        let string = decrypt_string(v.to_owned().into_boxed_slice());
+        Ok(PermutedString { string })
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-        where
-            A: serde::de::SeqAccess<'de>, {
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
         let mut bytes = Vec::new();
         match seq.size_hint() {
             Some(size) => {
@@ -108,7 +112,7 @@ impl<'de> Visitor<'de> for EStrVisitor {
                 for _ in 0..size {
                     bytes.push(seq.next_element::<u8>()?.unwrap());
                 }
-            },
+            }
             None => {
                 let mut prev = seq.next_element::<u8>()?;
                 while prev.is_some() {
@@ -126,7 +130,8 @@ impl<'de> Visitor<'de> for EStrVisitor {
 impl<'de> Deserialize<'de> for PermutedString {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         deserializer.deserialize_bytes(EStrVisitor)
     }
 }

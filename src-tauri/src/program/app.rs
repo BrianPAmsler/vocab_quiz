@@ -1,30 +1,41 @@
-use std::{path::{Path, PathBuf}, fs::{read_dir, File, metadata}, sync::Arc, collections::HashMap, io::Write, ops::Index, ptr};
+use std::{
+    collections::HashMap,
+    fs::{metadata, read_dir, File},
+    io::Write,
+    ops::Index,
+    path::{Path, PathBuf},
+    ptr,
+    sync::Arc,
+};
 
-use chrono::{Utc, DateTime};
+use chrono::{DateTime, Utc};
 use rand::Rng;
-use serde::{Serialize, Deserialize};
-use tauri::api::path::data_dir;
+use serde::{Deserialize, Serialize};
+use tauri::{path::PathResolver, AppHandle, Manager};
 
-use crate::{tools::{dict_map::DictMap, weighted_list::pick_by_weight}, error::Error, words::{Dictionary, WordID, FileVersion, Knowledge}, constants::APP_DATA_FOLDER};
+use crate::{
+    constants::APP_DATA_FOLDER,
+    error::Error,
+    tools::{dict_map::DictMap, weighted_list::pick_by_weight},
+    words::{Dictionary, FileVersion, Knowledge, WordID},
+};
 
 use super::{user::User, Progress};
 
 macro_rules! to_dir_path {
-    ($path: expr) => {
-        {
-            let mut buf = std::path::PathBuf::new();
-            buf.push($path);
-            if !buf.is_dir() {
-                return Err("Path must be a directory.")?;
-            }
-            buf
+    ($path: expr) => {{
+        let mut buf = std::path::PathBuf::new();
+        buf.push($path);
+        if !buf.is_dir() {
+            return Err("Path must be a directory.")?;
         }
-    };
+        buf
+    }};
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DictID {
-    name: String
+    name: String,
 }
 
 impl DictID {
@@ -35,7 +46,7 @@ impl DictID {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct UserID {
-    name: String
+    name: String,
 }
 
 impl UserID {
@@ -47,22 +58,27 @@ impl UserID {
 struct PracticeSession {
     word_pool: Vec<WordID>,
     knowledge: Knowledge,
-    start_time: DateTime<Utc>
+    start_time: DateTime<Utc>,
 }
 
 impl PracticeSession {
     fn new(dict: &Dictionary, knowledge: Knowledge, score_max: u32) -> PracticeSession {
         let start_time = Utc::now();
-        let potential_word_pool: Vec<(f32, WordID)> = dict.get_words_leq_score(score_max).to_vec().into_iter().filter_map(|x| {
-            let k = knowledge.get_word_knowledge(x);
-            let pv = k.calculate_p_value(start_time);
+        let potential_word_pool: Vec<(f32, WordID)> = dict
+            .get_words_leq_score(score_max)
+            .to_vec()
+            .into_iter()
+            .filter_map(|x| {
+                let k = knowledge.get_word_knowledge(x);
+                let pv = k.calculate_p_value(start_time);
 
-            if pv < 0.6 {
-                Some((1.0 - pv, x))
-            } else {
-                None
-            }
-        }).collect();
+                if pv < 0.6 {
+                    Some((1.0 - pv, x))
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         let mut word_pool;
         if potential_word_pool.len() <= 20 {
@@ -94,19 +110,26 @@ impl PracticeSession {
                             picked.push(choice);
                         }
                     }
-        
-                    // re-weight based on word obscurity
-                    let max_obs = picked.iter().map(|x| {
-                        let w = dict.get_word_from_id(pool[*x].1);
 
-                        w.obscurity
-                    }).max().unwrap();
-                    let picked: Vec<(f32, WordID)> = picked.iter().map(|x| {
-                        let id = pool[*x].1;
-                        let w = dict.get_word_from_id(id);
-                        
-                        ((max_obs - w.obscurity + 1) as f32, id)
-                    }).collect();
+                    // re-weight based on word obscurity
+                    let max_obs = picked
+                        .iter()
+                        .map(|x| {
+                            let w = dict.get_word_from_id(pool[*x].1);
+
+                            w.obscurity
+                        })
+                        .max()
+                        .unwrap();
+                    let picked: Vec<(f32, WordID)> = picked
+                        .iter()
+                        .map(|x| {
+                            let id = pool[*x].1;
+                            let w = dict.get_word_from_id(id);
+
+                            ((max_obs - w.obscurity + 1) as f32, id)
+                        })
+                        .collect();
 
                     let choice = pick_by_weight(&picked[..]);
                     word_pool.push(pool.remove(choice).1);
@@ -114,7 +137,11 @@ impl PracticeSession {
             }
         }
 
-        PracticeSession { word_pool, knowledge, start_time }
+        PracticeSession {
+            word_pool,
+            knowledge,
+            start_time,
+        }
     }
 
     fn pick_word(&mut self) -> WordID {
@@ -132,7 +159,6 @@ impl PracticeSession {
     fn recover_knowledge(self) -> Knowledge {
         self.knowledge
     }
-
 }
 
 pub struct Application {
@@ -143,17 +169,32 @@ pub struct Application {
     current_dict: Option<DictID>,
     current_user: Option<UserID>,
     practice_session: Option<PracticeSession>,
-    current_word: Option<WordID>
+    current_word: Option<WordID>,
+    app_handle: AppHandle
 }
 
 impl Application {
-    pub fn new<P1: AsRef<Path>, P2: AsRef<Path>>(user_dir: P1, dict_dir: P2) -> Result<Application, Error> {
+    pub fn new<P1: AsRef<Path>, P2: AsRef<Path>>(
+        user_dir: P1,
+        dict_dir: P2,
+        app_handle: AppHandle
+    ) -> Result<Application, Error> {
         let user_dir = to_dir_path!(user_dir);
         let dict_dir = to_dir_path!(dict_dir);
         let users = HashMap::<String, User>::new();
         let dicts = DictMap::new();
 
-        Ok(Application { user_dir , dict_dir, users, dicts, current_dict: None, current_user: None, practice_session: None, current_word: None })
+        Ok(Application {
+            user_dir,
+            dict_dir,
+            users,
+            dicts,
+            current_dict: None,
+            current_user: None,
+            practice_session: None,
+            current_word: None,
+            app_handle
+        })
     }
 
     pub fn load(&mut self, tracker: Option<Progress>) -> Result<(), Error> {
@@ -165,16 +206,14 @@ impl Application {
             let dict_path = r?.path();
 
             match dict_path.extension() {
-                Some(ex) => {
-                    match ex.to_str() {
-                        Some("dct") => {
-                            dict_filesize += std::fs::metadata(&dict_path)?.len();
-                            dict_files.push(dict_path);
-                        } 
-                        _ => ()
+                Some(ex) => match ex.to_str() {
+                    Some("dct") => {
+                        dict_filesize += std::fs::metadata(&dict_path)?.len();
+                        dict_files.push(dict_path);
                     }
-                }
-                None => ()
+                    _ => (),
+                },
+                None => (),
             }
         }
 
@@ -186,16 +225,14 @@ impl Application {
             let user_path = r?.path();
 
             match user_path.extension() {
-                Some(ex) => {
-                    match ex.to_str() {
-                        Some("usr") => {
-                            user_filesize += metadata(&user_path)?.len();
-                            user_files.push(user_path);
-                        } 
-                        _ => ()
+                Some(ex) => match ex.to_str() {
+                    Some("usr") => {
+                        user_filesize += metadata(&user_path)?.len();
+                        user_files.push(user_path);
                     }
-                }
-                None => ()
+                    _ => (),
+                },
+                None => (),
             }
         }
 
@@ -205,7 +242,7 @@ impl Application {
 
         match tracker {
             Some(mut tracker) => tracker.append(&[&dict_progress, &user_progress]),
-            None => ()
+            None => (),
         }
 
         // Load Dictionaries
@@ -218,7 +255,7 @@ impl Application {
             if r.is_ok() {
                 let (dict, file_version) = r.unwrap();
                 drop(file);
-    
+
                 match file_version {
                     FileVersion::Current => (),
                     FileVersion::Old(_) => {
@@ -227,9 +264,9 @@ impl Application {
                         dict.save_to(&mut file)?
                     }
                 };
-    
+
                 self.dicts.insert(Arc::new(dict));
-    
+
                 dict_progress.add_progress(dict_prog);
             } else {
                 println!("{}", r.err().unwrap().msg());
@@ -246,7 +283,7 @@ impl Application {
             if r.is_ok() {
                 let user = r.unwrap();
                 self.users.insert(user.get_name().to_owned(), user);
-    
+
                 user_progress.add_progress(user_prog);
             }
         }
@@ -255,15 +292,23 @@ impl Application {
     }
 
     pub fn get_dict_list(&self) -> Box<[DictID]> {
-        let list: Box<[DictID]> = (&self.dicts).into_iter().map(|x| DictID { name: x.1.get_title().to_owned() }).collect();
+        let list: Box<[DictID]> = (&self.dicts)
+            .into_iter()
+            .map(|x| DictID {
+                name: x.1.get_title().to_owned(),
+            })
+            .collect();
 
         list
     }
 
     pub fn get_pool_size(&self, dict: DictID) -> usize {
         let dict = &self.dicts[&dict.name];
-        let user = self.users.get(&self.current_user.as_ref().unwrap().name).unwrap();
-        
+        let user = self
+            .users
+            .get(&self.current_user.as_ref().unwrap().name)
+            .unwrap();
+
         let knowl = {
             let mut t = None;
             for k in user.get_knowledge() {
@@ -274,23 +319,28 @@ impl Application {
 
             match t {
                 Some(t) => t,
-                None => return 0
+                None => return 0,
             }
         };
 
         let score_max = knowl.get_active_words() as u32;
         let start_time = Utc::now();
 
-        dict.get_words_leq_score(score_max).to_vec().into_iter().filter_map(|x| {
-            let k = knowl.get_word_knowledge(x);
-            let pv = k.calculate_p_value(start_time);
+        dict.get_words_leq_score(score_max)
+            .to_vec()
+            .into_iter()
+            .filter_map(|x| {
+                let k = knowl.get_word_knowledge(x);
+                let pv = k.calculate_p_value(start_time);
 
-            if pv < 0.6 {
-                Some((1.0 - pv, x))
-            } else {
-                None
-            }
-        }).collect::<Vec<_>>().len()
+                if pv < 0.6 {
+                    Some((1.0 - pv, x))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+            .len()
     }
 
     pub fn set_dict(&mut self, dict: DictID) {
@@ -302,7 +352,10 @@ impl Application {
             return false;
         }
 
-        let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
+        let user = self
+            .users
+            .get_mut(&self.current_user.as_ref().unwrap().name)
+            .unwrap();
         let dict = &self.dicts[&self.current_dict.as_ref().unwrap().name.clone()];
 
         let knowl = {
@@ -313,7 +366,8 @@ impl Application {
                 }
             }
 
-            user.take_knowledge(t).unwrap_or(Knowledge::create(dict.clone()))
+            user.take_knowledge(t)
+                .unwrap_or(Knowledge::create(dict.clone()))
         };
 
         let s = knowl.get_active_words() as u32;
@@ -334,7 +388,10 @@ impl Application {
             return 0;
         }
 
-        let user = self.users.get(&self.current_user.as_ref().unwrap().name).unwrap();
+        let user = self
+            .users
+            .get(&self.current_user.as_ref().unwrap().name)
+            .unwrap();
         let dict = &self.dicts[&self.current_dict.as_ref().unwrap().name.clone()];
 
         let knowl = {
@@ -349,10 +406,8 @@ impl Application {
         };
 
         match knowl {
-            Some(k) => {
-                k.get_active_words()
-            },
-            None => 0
+            Some(k) => k.get_active_words(),
+            None => 0,
         }
     }
 
@@ -361,7 +416,10 @@ impl Application {
             return;
         }
 
-        let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
+        let user = self
+            .users
+            .get_mut(&self.current_user.as_ref().unwrap().name)
+            .unwrap();
         let dict = &self.dicts[&self.current_dict.as_ref().unwrap().name.clone()];
 
         let mut knowl = {
@@ -372,9 +430,10 @@ impl Application {
                 }
             }
 
-            user.take_knowledge(t).unwrap_or(Knowledge::create(dict.clone()))
+            user.take_knowledge(t)
+                .unwrap_or(Knowledge::create(dict.clone()))
         };
-        
+
         knowl.set_active_words(words);
         user.add_knowledge(knowl);
     }
@@ -388,7 +447,13 @@ impl Application {
     }
 
     pub fn get_current_word(&self) -> Option<crate::words::for_frontend::Word> {
-        let dict = self.dicts[&self.current_dict.as_ref().expect("No dictionary selected!").name.to_owned()].as_ref();
+        let dict = self.dicts[&self
+            .current_dict
+            .as_ref()
+            .expect("No dictionary selected!")
+            .name
+            .to_owned()]
+            .as_ref();
 
         Some(dict.get_word_from_id(self.current_word?).clone().into())
     }
@@ -406,7 +471,10 @@ impl Application {
     pub fn conclude_session(&mut self) {
         let kw = self.practice_session.take().unwrap().recover_knowledge();
 
-        let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
+        let user = self
+            .users
+            .get_mut(&self.current_user.as_ref().unwrap().name)
+            .unwrap();
 
         user.add_knowledge(kw);
     }
@@ -416,7 +484,9 @@ impl Application {
         out.reserve(self.users.len());
 
         for (name, _) in &self.users {
-            out.push(UserID { name: name.to_owned()});
+            out.push(UserID {
+                name: name.to_owned(),
+            });
         }
 
         out.into_boxed_slice()
@@ -424,14 +494,14 @@ impl Application {
 
     pub fn set_current_user(&mut self, user: Option<UserID>) {
         if user.is_some() {
-            let mut last_user_path = data_dir().unwrap();
+            let mut last_user_path = self.app_handle.path().data_dir().unwrap();
             last_user_path.push(APP_DATA_FOLDER);
             last_user_path.push("lastuser");
-    
+
             let r = File::create(last_user_path);
             if r.is_ok() {
                 let mut f = r.unwrap();
-    
+
                 f.write(user.as_ref().unwrap().name.as_bytes()).unwrap();
             }
         }
@@ -440,7 +510,10 @@ impl Application {
     }
 
     pub fn save_current_user(&mut self) -> Result<(), Error> {
-        let user = self.users.get_mut(&self.current_user.as_ref().unwrap().name).unwrap();
+        let user = self
+            .users
+            .get_mut(&self.current_user.as_ref().unwrap().name)
+            .unwrap();
 
         let mut user_path = PathBuf::new();
         user_path.push(&self.user_dir);
@@ -472,7 +545,9 @@ impl Application {
         let user = User::create(name);
         user.save_to(&mut user_file)?;
 
-        let id = UserID { name: user.get_name().to_owned() };
+        let id = UserID {
+            name: user.get_name().to_owned(),
+        };
 
         self.users.insert(user.get_name().to_owned(), user);
 

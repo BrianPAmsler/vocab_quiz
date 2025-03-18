@@ -1,12 +1,12 @@
-const { invoke } = window.__TAURI__.tauri;
+const { invoke } = window.__TAURI__.core;
 const { open, save }  = window.__TAURI__.dialog;
+const fs = window.__TAURI__.fs;
 
 const list = document.getElementById("dicts");
 
 const fit = window.fit;
 
-let dicts = await invoke("get_dict_list");
-dicts.sort();
+let dicts = null;
 
 async function pick_dict(dict) {
     await invoke("set_dict", {dict: dict});
@@ -44,11 +44,6 @@ function make_dict_button(dict, count=0) {
     fit(div, 4);
 }
 
-dicts.forEach(async (dict) => {
-    let count = await invoke("get_pool_size", {dict: dict});
-    make_dict_button(dict, count);
-});
-
 async function load_dict() {
     let files = await open({
         multiple: true,
@@ -58,7 +53,6 @@ async function load_dict() {
         }]
       });
 
-    console.log(files);
     files.forEach(async (f) => {
         await invoke("import_dict", {filename: f});
     })
@@ -68,3 +62,18 @@ async function load_dict() {
 }
 
 window.load_dict = load_dict;
+
+async function main() {
+    dicts = await invoke("get_dict_list");
+    dicts.sort();
+    
+
+    dicts.forEach(async (dict) => {
+        let count = await invoke("get_pool_size", {dict: dict});
+        make_dict_button(dict, count);
+    });
+
+    console.log(await window.__TAURI__.path.dataDir());
+}
+
+main();

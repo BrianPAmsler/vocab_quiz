@@ -230,20 +230,20 @@ button {
   input[type="submit"]:hover {
     filter: drop-shadow(0 0 2em #000000);
   }
-}
 
-button.scaled-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  height: min(12.5vw, 125px);
-  width: min(45vw, 450px);
-  font-size: min(5vw, 50px);
-  font-weight: 500;
-  font-family: inherit;
-  color: #f6f6f6;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-  transition: border-color 0.25s, filter 0.75s;
+  button.scaled-button {
+    border-radius: 8px;
+    border: 1px solid transparent;
+    padding: 0.6em 1.2em;
+    height: min(12.5vw, 125px);
+    width: min(45vw, 450px);
+    font-size: min(5vw, 50px);
+    font-weight: 500;
+    font-family: inherit;
+    color: #f6f6f6;
+    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+    transition: border-color 0.25s, filter 0.75s;
+  }
 }
 
 button.yes {

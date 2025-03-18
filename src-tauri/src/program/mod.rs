@@ -1,9 +1,9 @@
-mod user;
 mod app;
 mod loader;
+mod user;
 
 pub mod filemanager;
 
-pub use user::*;
 pub use app::*;
 pub use loader::*;
+pub use user::*;

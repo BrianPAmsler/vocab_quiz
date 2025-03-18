@@ -1,14 +1,23 @@
-use std::{collections::{HashMap, hash_map::{Values, Keys}}, ops::Index, sync::Arc};
+use std::{
+    collections::{
+        hash_map::{Keys, Values},
+        HashMap,
+    },
+    ops::Index,
+    sync::Arc,
+};
 
 use crate::words::Dictionary;
 
 pub struct DictMap {
-    map: HashMap<String, Arc<Dictionary>>
+    map: HashMap<String, Arc<Dictionary>>,
 }
 
 impl DictMap {
     pub fn new() -> DictMap {
-        DictMap { map: HashMap::new() }
+        DictMap {
+            map: HashMap::new(),
+        }
     }
 
     pub fn insert(&mut self, dict: Arc<Dictionary>) -> Option<Arc<Dictionary>> {
@@ -18,7 +27,7 @@ impl DictMap {
     pub fn values<'a>(&'a self) -> Values<'a, String, Arc<Dictionary>> {
         self.map.values()
     }
-    
+
     pub fn keys<'a>(&'a self) -> Keys<'a, String, Arc<Dictionary>> {
         self.map.keys()
     }
@@ -51,8 +60,8 @@ impl<'a> Index<&'a str> for DictMap {
 }
 
 impl IntoIterator for DictMap {
-    type IntoIter = <HashMap::<String, Arc<Dictionary>> as IntoIterator>::IntoIter;
-    type Item = <HashMap::<String, Arc<Dictionary>> as IntoIterator>::Item;
+    type IntoIter = <HashMap<String, Arc<Dictionary>> as IntoIterator>::IntoIter;
+    type Item = <HashMap<String, Arc<Dictionary>> as IntoIterator>::Item;
 
     fn into_iter(self) -> Self::IntoIter {
         self.map.into_iter()
@@ -60,8 +69,8 @@ impl IntoIterator for DictMap {
 }
 
 impl<'a> IntoIterator for &'a DictMap {
-    type IntoIter = <&'a HashMap::<String, Arc<Dictionary>> as IntoIterator>::IntoIter;
-    type Item = <&'a HashMap::<String, Arc<Dictionary>> as IntoIterator>::Item;
+    type IntoIter = <&'a HashMap<String, Arc<Dictionary>> as IntoIterator>::IntoIter;
+    type Item = <&'a HashMap<String, Arc<Dictionary>> as IntoIterator>::Item;
 
     fn into_iter(self) -> Self::IntoIter {
         self.map.iter()

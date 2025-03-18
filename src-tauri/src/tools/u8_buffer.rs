@@ -1,19 +1,26 @@
-
 use std::io::{Read, Write};
 
 pub struct U8Buffer<'a> {
     buf: &'a mut [u8],
     begin: usize,
-    end: usize
+    end: usize,
 }
 
 impl<'a> U8Buffer<'a> {
     pub fn create_empty<'b>(buf: &'b mut [u8]) -> U8Buffer<'b> {
-        U8Buffer { buf, begin: 0, end: 0 }
+        U8Buffer {
+            buf,
+            begin: 0,
+            end: 0,
+        }
     }
 
     pub fn create_full<'b>(buf: &'b mut [u8]) -> U8Buffer<'b> {
-        U8Buffer { begin: 0, end: buf.len(), buf }
+        U8Buffer {
+            begin: 0,
+            end: buf.len(),
+            buf,
+        }
     }
 
     pub fn len(&self) -> usize {

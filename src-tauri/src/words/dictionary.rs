@@ -1,28 +1,31 @@
-use std::{collections::{BTreeMap, HashSet, HashMap}, io::{Write, Read}, sync::Mutex};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    io::{Read, Write},
+    sync::Mutex,
+};
 
+use serde::{Deserialize, Serialize};
 
-use serde::{Serialize, Deserialize};
+use crate::{error::Error, program::filemanager, tools::crypt_string::PermutedString};
 
-use crate::{error::Error, tools::crypt_string::PermutedString, program::filemanager};
-
-use super::{Word};
+use super::Word;
 
 const DICT_HEADER: &'static str = "DICTINARYDATA";
 const DICT_VERSION: &'static str = "1.0";
 
 pub enum FileVersion {
     Current,
-    Old(String)
+    Old(String),
 }
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WordID {
-    id: usize
+    id: usize,
 }
 
 impl WordID {
     fn from(id: usize) -> Self {
-        WordID {id}
+        WordID { id }
     }
 }
 
@@ -36,7 +39,7 @@ impl Into<usize> for WordID {
 pub enum ObscurityMode {
     Exponential(f64),
     Linear(f64),
-    Manual
+    Manual,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -66,16 +69,20 @@ fn insert_obs(obscurity_index: &mut BTreeMap<u32, Mutex<HashSet<WordID>>>, id: W
 
 #[derive(Debug)]
 pub struct Dictionary {
-    pub(in super) title: String,
-    pub(in super) words: Box<[Word]>,
-    pub(in super) obscurity_index: BTreeMap<u32, Mutex<HashSet<WordID>>>,
-    pub(in super) word_index: HashMap<String, WordID>
+    pub(super) title: String,
+    pub(super) words: Box<[Word]>,
+    pub(super) obscurity_index: BTreeMap<u32, Mutex<HashSet<WordID>>>,
+    pub(super) word_index: HashMap<String, WordID>,
 }
 
 impl Dictionary {
     pub fn create(words: Box<[Word]>, name: String, mode: ObscurityMode) -> Dictionary {
-
-        let mut dct = Dictionary { words, title: name, obscurity_index: BTreeMap::new(), word_index: HashMap::new() };
+        let mut dct = Dictionary {
+            words,
+            title: name,
+            obscurity_index: BTreeMap::new(),
+            word_index: HashMap::new(),
+        };
         for (i, word) in dct.words.iter_mut().enumerate() {
             let id = WordID::from(i);
 
@@ -116,7 +123,7 @@ impl Dictionary {
     pub fn find_word(&self, word: String) -> Option<WordID> {
         match self.word_index.get(&word) {
             Some(id) => Some(*id),
-            None => None
+            None => None,
         }
     }
 
@@ -150,13 +157,21 @@ impl Dictionary {
 
         let data = alloc.into_boxed_slice();
 
-        let data = DictData { name: self.title.to_owned().into(), data };
-        
+        let data = DictData {
+            name: self.title.to_owned().into(),
+            data,
+        };
+
         let mut final_alloc = vec![0u8; data.size_of()];
         let num_bytes = postcard::to_slice(&data, &mut final_alloc)?.len();
         final_alloc.truncate(num_bytes);
 
-        filemanager::save_file(writable, DICT_HEADER.to_owned(), DICT_VERSION.to_owned(),final_alloc.into_boxed_slice())?;
+        filemanager::save_file(
+            writable,
+            DICT_HEADER.to_owned(),
+            DICT_VERSION.to_owned(),
+            final_alloc.into_boxed_slice(),
+        )?;
 
         Ok(())
     }
@@ -171,14 +186,17 @@ impl Dictionary {
         match file.version.as_str() {
             DICT_VERSION => {
                 let data = &mut file.data[..];
-        
+
                 let dict_data: DictData = postcard::from_bytes(&data)?;
 
                 let words = postcard::from_bytes(&dict_data.data)?;
                 let name = dict_data.name;
 
-                Ok((Dictionary::create(words, name.to_string(), ObscurityMode::Manual), FileVersion::Current))
-            },
+                Ok((
+                    Dictionary::create(words, name.to_string(), ObscurityMode::Manual),
+                    FileVersion::Current,
+                ))
+            }
             v => {
                 let dict = match v {
                     _ => {

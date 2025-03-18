@@ -1,9 +1,8 @@
-const { invoke } = window.__TAURI__.tauri;
+const { invoke } = window.__TAURI__.core;
 
 const list = document.getElementById("users");
 
-let users = await invoke("get_users");
-users.sort();
+let users = null;
 
 let buttons = [];
 
@@ -37,5 +36,11 @@ window.back = () => {
     window.location.replace("index.html");
 }
 
-users.forEach(make_user_button);
-await update_buttons();
+async function main() {
+    users = await invoke("get_users");
+    users.sort();
+    users.forEach(make_user_button);
+    await update_buttons();
+}
+
+main();

@@ -1,9 +1,9 @@
-use std::{fmt::{Debug, Display}};
+use std::fmt::{Debug, Display};
 
 use crate::tools::xml::DictParseError;
 
 #[derive(thiserror::Error)]
-pub struct Error (String);
+pub struct Error(String);
 
 impl<'a> Error {
     pub fn msg<'b>(&'b self) -> &'b str {
@@ -29,7 +29,13 @@ impl Display for Error {
 
 impl From<&'static str> for Error {
     fn from(o: &'static str) -> Self {
-        Error (o.to_string())
+        Error(o.to_string())
+    }
+}
+
+impl From<String> for Error {
+    fn from(value: String) -> Self {
+        Error(value)
     }
 }
 
@@ -41,7 +47,7 @@ impl From<std::io::Error> for Error {
 
 impl From<postcard::Error> for Error {
     fn from(o: postcard::Error) -> Self {
-        Error (o.to_string())
+        Error(o.to_string())
     }
 }
 

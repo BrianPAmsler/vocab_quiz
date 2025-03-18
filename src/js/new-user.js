@@ -1,4 +1,4 @@
-const { invoke } = window.__TAURI__.tauri;
+const { invoke } = window.__TAURI__.core;
 
 const form = document.getElementById("user-form");
 const err_txt = document.getElementById("error-text");

@@ -1,5 +1,5 @@
-pub mod u8_buffer;
-pub mod dict_map;
 pub mod crypt_string;
-pub mod xml;
+pub mod dict_map;
+pub mod u8_buffer;
 pub mod weighted_list;
+pub mod xml;

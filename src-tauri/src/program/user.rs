@@ -1,8 +1,18 @@
-use std::{collections::HashMap, io::{Read, Write}, mem::size_of, ops::Index, sync::Arc};
+use std::{
+    collections::HashMap,
+    io::{Read, Write},
+    mem::size_of,
+    ops::Index,
+    sync::Arc,
+};
 
 use struct_version_manager::version_macro::version_mod;
 
-use crate::{error::Error, tools::{dict_map::DictMap, u8_buffer::U8Buffer}, words::{Dictionary, Knowledge}};
+use crate::{
+    error::Error,
+    tools::{dict_map::DictMap, u8_buffer::U8Buffer},
+    words::{Dictionary, Knowledge},
+};
 
 const USER_HEADER: &'static str = "USER_FILE";
 const USER_VERSION: &'static str = "0.1";
@@ -11,24 +21,30 @@ const USER_VERSION: &'static str = "0.1";
 mod user_data {
 
     pub mod v1 {
-        use serde::{Serialize, Deserialize};
+        use serde::{Deserialize, Serialize};
         use struct_version_manager::version_macro::version;
 
-        use crate::{program::{User, user::encode_knowledge_data}, error::Error};
+        use crate::{
+            error::Error,
+            program::{user::encode_knowledge_data, User},
+        };
 
         #[derive(Serialize, Deserialize)]
         #[version("0.1")]
         pub struct UserData {
             pub name: String,
-            pub knowledge_data: Box<[u8]>
+            pub knowledge_data: Box<[u8]>,
         }
-        
+
         impl UserData {
             pub fn create(user: &User) -> Result<UserData, Error> {
                 let name = user.name.to_owned();
                 let knowledge_data = encode_knowledge_data(&user.knowledge)?;
-        
-                Ok(UserData { name, knowledge_data})
+
+                Ok(UserData {
+                    name,
+                    knowledge_data,
+                })
             }
         }
     }
@@ -40,12 +56,15 @@ use super::filemanager;
 
 pub struct User {
     name: String,
-    knowledge: Vec<Knowledge>
+    knowledge: Vec<Knowledge>,
 }
 
 impl User {
     pub fn create(name: String) -> User {
-        User { name, knowledge: Vec::new() }
+        User {
+            name,
+            knowledge: Vec::new(),
+        }
     }
 
     pub fn add_knowledge(&mut self, knowledge: Knowledge) {
@@ -76,13 +95,18 @@ impl User {
         let data = UserData::create(&self)?;
 
         let size_estimate = size_of::<UserData>() + size_of::<u8>() * data.knowledge_data.len();
-    
+
         let mut alloc = vec![0u8; size_estimate];
-        
+
         let size = postcard::to_slice(&data, &mut alloc)?.len();
         alloc.truncate(size);
-        
-        Ok(filemanager::save_file(writable, USER_HEADER.to_owned(), USER_VERSION.to_owned(), alloc.into_boxed_slice())?)
+
+        Ok(filemanager::save_file(
+            writable,
+            USER_HEADER.to_owned(),
+            USER_VERSION.to_owned(),
+            alloc.into_boxed_slice(),
+        )?)
     }
 
     pub fn load_from<T: Read>(readable: &mut T, dict_container: &DictMap) -> Result<Self, Error> {
@@ -95,11 +119,14 @@ impl User {
         match file.version.as_str() {
             USER_VERSION => {
                 let mut data = postcard::from_bytes::<UserData>(&mut file.data)?;
-        
+
                 let kw_data = decode_knowledge_data(&mut data.knowledge_data, dict_container)?;
-        
-                Ok(User { name: data.name, knowledge: kw_data.into_vec() })
-            },
+
+                Ok(User {
+                    name: data.name,
+                    knowledge: kw_data.into_vec(),
+                })
+            }
             v => {
                 let knowl = match v {
                     _ => {
@@ -136,18 +163,21 @@ fn encode_knowledge_data(knowledge: &[Knowledge]) -> Result<Box<[u8]>, Error> {
         buf.write(&size_bytes)?;
         buf.advance_write(kw_size);
     }
-    
+
     let total_size = buf.len() + size_len;
     drop(buf);
 
     data.truncate(total_size);
     println!("Actual size: {}", data.len());
 
-    Ok(data.into_boxed_slice()) 
+    Ok(data.into_boxed_slice())
 }
 
 fn decode_knowledge_data(data: &mut [u8], container: &DictMap) -> Result<Box<[Knowledge]>, Error> {
-    let (count, used) = {let t = postcard::take_from_bytes::<usize>(data)?; (t.0, data.len() - t.1.len())};
+    let (count, used) = {
+        let t = postcard::take_from_bytes::<usize>(data)?;
+        (t.0, data.len() - t.1.len())
+    };
     let data = &mut data[used..];
 
     let mut out = Vec::new();
