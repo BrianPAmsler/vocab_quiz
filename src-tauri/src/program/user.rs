@@ -1,9 +1,6 @@
 use std::{
-    collections::HashMap,
     io::{Read, Write},
     mem::size_of,
-    ops::Index,
-    sync::Arc,
 };
 
 use struct_version_manager::version_macro::version_mod;
@@ -11,7 +8,7 @@ use struct_version_manager::version_macro::version_mod;
 use crate::{
     error::Error,
     tools::{dict_map::DictMap, u8_buffer::U8Buffer},
-    words::{Dictionary, Knowledge},
+    words::Knowledge,
 };
 
 const USER_HEADER: &'static str = "USER_FILE";

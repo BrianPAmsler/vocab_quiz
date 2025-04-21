@@ -1,13 +1,10 @@
 use std::{
-    collections::HashMap,
     io::{Read, Write},
     mem::size_of,
-    ops::Index,
     sync::Arc,
 };
 
-use chrono::{DateTime, NaiveDateTime, Utc};
-use rand::Rng;
+use chrono::{DateTime, Utc};
 use serde::{de::Visitor, Deserializer, Serializer};
 
 use struct_version_manager::version_macro::version_mod;
@@ -34,9 +31,9 @@ impl<'de> Visitor<'de> for TimeVisitor {
     where
         E: serde::de::Error,
     {
-        let time = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp_opt(v, 0).unwrap(), Utc);
+        let time = DateTime::<Utc>::from_timestamp(v, 0);
 
-        Ok(Some(time))
+        Ok(time)
     }
 
     fn visit_none<E>(self) -> Result<Self::Value, E>
@@ -179,19 +176,19 @@ impl Knowledge {
         Ok(size)
     }
 
-    pub fn randomize(&mut self) {
-        let mut rng = rand::thread_rng();
-        for k in self.knowledge.as_mut() {
-            k.last_practice = Some(
-                DateTime::<Utc>::from_utc(
-                    NaiveDateTime::from_timestamp_opt(rng.gen::<u32>() as i64, 0).unwrap(),
-                    Utc,
-                )
-                .into(),
-            );
-            k.half_life = rng.gen_range(MIN_HALF_LIFE..100.0);
-        }
-    }
+    // pub fn randomize(&mut self) {
+    //     let mut rng = rand::thread_rng();
+    //     for k in self.knowledge.as_mut() {
+    //         k.last_practice = Some(
+    //             DateTime::<Utc>::from_utc(
+    //                 NaiveDateTime::from_timestamp_opt(rng.gen::<u32>() as i64, 0).unwrap(),
+    //                 Utc,
+    //             )
+    //             .into(),
+    //         );
+    //         k.half_life = rng.gen_range(MIN_HALF_LIFE..100.0);
+    //     }
+    // }
 
     pub fn load_from<'a, T>(readable: &mut T, container: &DictMap) -> Result<Knowledge, Error>
     where

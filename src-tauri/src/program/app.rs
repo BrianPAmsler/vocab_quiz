@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     fs::{metadata, read_dir, File},
     io::Write,
-    ops::Index,
     path::{Path, PathBuf},
     ptr,
     sync::Arc,
@@ -11,7 +10,7 @@ use std::{
 use chrono::{DateTime, Utc};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use tauri::{path::PathResolver, AppHandle, Manager};
+use tauri::{AppHandle, Manager};
 
 use crate::{
     constants::APP_DATA_FOLDER,
