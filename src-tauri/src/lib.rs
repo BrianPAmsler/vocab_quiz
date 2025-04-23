@@ -19,7 +19,7 @@ use std::{
 
 use constants::APP_DATA_FOLDER;
 use error::Error;
-use program::{Application, DictID, UserID};
+use program::{Application, DictID, PracticeDirection, UserID};
 use tauri::Manager;
 use words::for_frontend::Word;
 
@@ -131,7 +131,7 @@ fn pick_next_word() {
 }
 
 #[tauri::command]
-fn get_current_word() -> Option<Word> {
+fn get_current_word() -> Option<(Word, PracticeDirection)> {
     let mtx = get_app();
     let app = mtx.as_ref().unwrap();
 

@@ -5,6 +5,7 @@ const params = new Proxy(new URLSearchParams(window.location.search), {
 });
 
 let word_obj = null;
+let practice_direction = null;
 
 const yes_no = document.getElementById("yesno");
 const chk = document.getElementById("check");
@@ -55,11 +56,19 @@ window.no = no;
 window.check = check;
 
 async function main() {
-    word_obj = await invoke("get_current_word");
+    let word = await invoke("get_current_word");
+    word_obj = word[0];
+    practice_direction = word[1];
 
-    word.innerText = word_obj.text;
-    pron.innerHTML = "Pronunciation:<br>" + word_obj.pronunciation;
-    def.innerHTML = "Definition:<br>" + word_obj.definition;
+    if (practice_direction == "Forward") {
+        word.innerText = word_obj.text;
+        pron.innerHTML = "Pronunciation:<br>" + word_obj.pronunciation;
+        def.innerHTML = "Definition:<br>" + word_obj.definition;
+    } else if (practice_direction == "Backward") {
+        word.innerText = word_obj.definition;
+        pron.innerHTML = "Pronunciation:<br>" + word_obj.pronunciation;
+        def.innerHTML = "Word:<br>" + word_obj.text;
+    }
 }
 
 main();

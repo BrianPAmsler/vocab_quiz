@@ -54,7 +54,7 @@ impl UserID {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum PracticeDirection {
     Forward,
     Backward
@@ -455,7 +455,7 @@ impl Application {
         self.current_word = Some(self.practice_session.as_mut().unwrap().pick_word());
     }
 
-    pub fn get_current_word(&self) -> Option<crate::words::for_frontend::Word> {
+    pub fn get_current_word(&self) -> Option<(crate::words::for_frontend::Word, PracticeDirection)> {
         let dict = self.dicts[&self
             .current_dict
             .as_ref()
@@ -464,7 +464,8 @@ impl Application {
             .to_owned()]
             .as_ref();
 
-        Some(dict.get_word_from_id(self.current_word?.0).clone().into())
+        let word = self.current_word?;
+        Some((dict.get_word_from_id(word.0).clone().into(), word.1))
     }
 
     pub fn practice_current_word(&mut self, result: bool) {
