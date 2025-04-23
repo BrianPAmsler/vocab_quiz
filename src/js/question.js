@@ -5,7 +5,6 @@ const params = new Proxy(new URLSearchParams(window.location.search), {
 });
 
 let word_obj = null;
-let practice_direction = null;
 
 const yes_no = document.getElementById("yesno");
 const chk = document.getElementById("check");
@@ -58,7 +57,7 @@ window.check = check;
 async function main() {
     let word = await invoke("get_current_word");
     word_obj = word[0];
-    practice_direction = word[1];
+    let practice_direction = word[1];
 
     if (practice_direction == "Forward") {
         word.innerText = word_obj.text;
