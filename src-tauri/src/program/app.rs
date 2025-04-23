@@ -54,8 +54,14 @@ impl UserID {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum PracticeDirection {
+    Forward,
+    Backward
+}
+
 struct PracticeSession {
-    word_pool: Vec<WordID>,
+    word_pool: Vec<(WordID, PracticeDirection)>,
     knowledge: Knowledge,
     start_time: DateTime<Utc>,
 }
@@ -63,19 +69,23 @@ struct PracticeSession {
 impl PracticeSession {
     fn new(dict: &Dictionary, knowledge: Knowledge, score_max: u32) -> PracticeSession {
         let start_time = Utc::now();
-        let potential_word_pool: Vec<(f32, WordID)> = dict
+        let potential_word_pool: Vec<(f32, (WordID, PracticeDirection))> = dict
             .get_words_leq_score(score_max)
             .to_vec()
             .into_iter()
-            .filter_map(|x| {
+            .flat_map(|x| {
                 let k = knowledge.get_word_knowledge(x);
-                let pv = k.calculate_p_value(start_time);
+                let pv = k.calculate_p_value_forward(start_time);
+                let pv2 = k.calculate_p_value_backward(start_time);
 
+                let mut words = Vec::new();
                 if pv < 0.6 {
-                    Some((1.0 - pv, x))
-                } else {
-                    None
+                    words.push((1.0 - pv, (x, PracticeDirection::Forward)));
                 }
+                if pv2 < 0.6 {
+                    words.push((1.0 - pv2, (x, PracticeDirection::Backward)))
+                }
+                words
             })
             .collect();
 
@@ -114,17 +124,17 @@ impl PracticeSession {
                     let max_obs = picked
                         .iter()
                         .map(|x| {
-                            let w = dict.get_word_from_id(pool[*x].1);
+                            let w = dict.get_word_from_id(pool[*x].1.0);
 
                             w.obscurity
                         })
                         .max()
                         .unwrap();
-                    let picked: Vec<(f32, WordID)> = picked
+                    let picked: Vec<(f32, (WordID, PracticeDirection))> = picked
                         .iter()
                         .map(|x| {
                             let id = pool[*x].1;
-                            let w = dict.get_word_from_id(id);
+                            let w = dict.get_word_from_id(id.0);
 
                             ((max_obs - w.obscurity + 1) as f32, id)
                         })
@@ -143,7 +153,7 @@ impl PracticeSession {
         }
     }
 
-    fn pick_word(&mut self) -> WordID {
+    fn pick_word(&mut self) -> (WordID, PracticeDirection) {
         let mut rng = rand::thread_rng();
 
         let choice = rng.gen_range(0..self.word_pool.len());
@@ -168,7 +178,7 @@ pub struct Application {
     current_dict: Option<DictID>,
     current_user: Option<UserID>,
     practice_session: Option<PracticeSession>,
-    current_word: Option<WordID>,
+    current_word: Option<(WordID, PracticeDirection)>,
     app_handle: AppHandle
 }
 
@@ -330,7 +340,7 @@ impl Application {
             .into_iter()
             .filter_map(|x| {
                 let k = knowl.get_word_knowledge(x);
-                let pv = k.calculate_p_value(start_time);
+                let pv = k.calculate_p_value_forward(start_time);
 
                 if pv < 0.6 {
                     Some((1.0 - pv, x))
@@ -454,13 +464,14 @@ impl Application {
             .to_owned()]
             .as_ref();
 
-        Some(dict.get_word_from_id(self.current_word?).clone().into())
+        Some(dict.get_word_from_id(self.current_word?.0).clone().into())
     }
 
     pub fn practice_current_word(&mut self, result: bool) {
         let sesh = self.practice_session.as_mut().unwrap();
+        let (word, direction) = self.current_word.unwrap();
 
-        sesh.knowledge.practice(self.current_word.unwrap(), result);
+        sesh.knowledge.practice(word, direction, result);
     }
 
     pub fn get_session_len(&self) -> usize {

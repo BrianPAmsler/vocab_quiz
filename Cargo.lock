@@ -4177,7 +4177,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 [[package]]
 name = "struct_version_manager"
 version = "0.1.0"
-source = "git+https://github.com/BrianPAmsler/struct_version_manager.git#a2189315cef2da02ab91d2c45482ffeec9c0bb32"
+source = "git+https://github.com/BrianPAmsler/struct_version_manager.git#2b65f51bf3f79a1c61c8dbca775a041e3815fc4c"
 dependencies = [
  "version_macro",
 ]
@@ -5234,7 +5234,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "version_macro"
 version = "0.1.0"
-source = "git+https://github.com/BrianPAmsler/struct_version_manager.git#a2189315cef2da02ab91d2c45482ffeec9c0bb32"
+source = "git+https://github.com/BrianPAmsler/struct_version_manager.git#2b65f51bf3f79a1c61c8dbca775a041e3815fc4c"
 dependencies = [
  "proc-macro2",
  "quote",

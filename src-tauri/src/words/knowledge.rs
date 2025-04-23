@@ -9,12 +9,12 @@ use serde::{de::Visitor, Deserializer, Serializer};
 
 use struct_version_manager::version_macro::version_mod;
 
-use crate::{error::Error, program::filemanager, tools::dict_map::DictMap};
+use crate::{error::Error, program::{filemanager, PracticeDirection}, tools::dict_map::DictMap};
 
 use super::{Dictionary, WordID};
 
 const KNOW_HEADER: &'static str = "KNOWLEDGEDATA";
-const KNOW_VERSION: &'static str = "0.2";
+const KNOW_VERSION: &'static str = "0.3";
 
 const MIN_HALF_LIFE: f32 = 10.0;
 
@@ -69,7 +69,7 @@ fn deserialize_time<'de, D: Deserializer<'de>>(
 
 #[version_mod(WordKnowledge)]
 mod word_knowledge {
-    pub mod v0_2 {
+    pub mod v0_3 {
         use chrono::{DateTime, Utc};
         use serde::{Deserialize, Serialize};
         use struct_version_manager::version_macro::version;
@@ -80,7 +80,41 @@ mod word_knowledge {
         use crate::words::WordID;
 
         #[derive(Clone, Debug, Serialize, Deserialize)]
+        #[version("0.3")]
+        pub struct WordKnowledge {
+            pub word_id: WordID,
+            #[serde(
+                serialize_with = "serialize_time",
+                deserialize_with = "deserialize_time"
+            )]
+            pub last_practice: Option<DateTime<Utc>>,
+            #[serde(
+                serialize_with = "serialize_time",
+                deserialize_with = "deserialize_time"
+            )]
+            pub last_practice_reverse: Option<DateTime<Utc>>,
+            pub half_life: f32,
+            pub half_life_reverse: f32,
+            pub(in super::super) _pv: (),
+        }
+    }
+    
+    pub mod v0_2 {
+        use chrono::{DateTime, Utc};
+        use serde::{Deserialize, Serialize};
+        use struct_version_manager::convert::ConvertTo;
+        use struct_version_manager::version_macro::converts_to;
+        use struct_version_manager::version_macro::version;
+
+        use super::super::deserialize_time;
+        use super::super::serialize_time;
+
+        use crate::words::knowledge::MIN_HALF_LIFE;
+        use crate::words::WordID;
+
+        #[derive(Clone, Debug, Serialize, Deserialize)]
         #[version("0.2")]
+        #[converts_to("0.3")]
         pub struct WordKnowledge {
             pub word_id: WordID,
             #[serde(
@@ -90,6 +124,19 @@ mod word_knowledge {
             pub last_practice: Option<DateTime<Utc>>,
             pub half_life: f32,
             pub(in super::super) _pv: (),
+        }
+
+        impl ConvertTo<super::v0_3::WordKnowledge> for WordKnowledge {
+            fn convert_to(self) -> super::v0_3::WordKnowledge {
+                super::v0_3::WordKnowledge {
+                    word_id: self.word_id,
+                    last_practice: self.last_practice,
+                    last_practice_reverse: None,
+                    half_life: self.half_life,
+                    half_life_reverse: (self.half_life + MIN_HALF_LIFE) / 2.0,
+                    _pv: self._pv
+                }
+            }
         }
 
         #[derive(Serialize, Deserialize)]
@@ -103,10 +150,10 @@ mod word_knowledge {
 }
 
 use word_knowledge::v0_2::KnowledgeData;
-pub use word_knowledge::v0_2::WordKnowledge;
+pub use word_knowledge::v0_3::WordKnowledge;
 
 impl WordKnowledge {
-    pub fn calculate_p_value(&self, practice_time: DateTime<Utc>) -> f32 {
+    pub fn calculate_p_value_forward(&self, practice_time: DateTime<Utc>) -> f32 {
         if self.last_practice.is_none() {
             return 0.0;
         }
@@ -114,6 +161,16 @@ impl WordKnowledge {
         let delta = (practice_time - self.last_practice.unwrap()).num_seconds() as f32 / 60.0;
 
         2.0f32.powf((-delta) / self.half_life)
+    }
+
+    pub fn calculate_p_value_backward(&self, practice_time: DateTime<Utc>) -> f32 {
+        if self.last_practice.is_none() {
+            return 0.0;
+        }
+
+        let delta = (practice_time - self.last_practice.unwrap()).num_seconds() as f32 / 60.0;
+
+        2.0f32.powf((-delta) / self.half_life_reverse)
     }
 }
 
@@ -132,7 +189,9 @@ impl Knowledge {
             let k = WordKnowledge {
                 word_id: *id,
                 last_practice: None,
+                last_practice_reverse: None,
                 half_life: MIN_HALF_LIFE,
+                half_life_reverse: MIN_HALF_LIFE,
                 _pv: (),
             };
 
@@ -217,6 +276,26 @@ impl Knowledge {
                     knowledge,
                     active_words: know_data.active_words,
                 })
+            },
+            "0.2" => {
+                let data = &mut file.data[..];
+
+                let know_data: KnowledgeData = postcard::from_bytes(&data)?;
+
+                let dict = container
+                    .get(&know_data.dict_title.to_string())
+                    .ok_or("Dict not found!")?
+                    .clone();
+                let knowledge: Box<[word_knowledge::v0_2::WordKnowledge]> = postcard::from_bytes(&know_data.knowledge_data)?;
+                let knowledge = knowledge.into_vec().into_iter().map(|know| {
+                    know.upgrade()
+                }).collect();
+
+                Ok(Knowledge {
+                    dict,
+                    knowledge,
+                    active_words: know_data.active_words,
+                })
             }
             v => {
                 let knowl = match v {
@@ -231,18 +310,21 @@ impl Knowledge {
         }
     }
 
-    pub fn practice(&mut self, word: WordID, correct: bool) {
+    pub fn practice(&mut self, word: WordID, direction: PracticeDirection, correct: bool) {
         let i: usize = word.into();
         let info = &mut self.knowledge[i];
 
-        let lp = info.last_practice;
-        info.last_practice = Some(Utc::now().into());
+        let mut lp = Some(Utc::now().into());
+        let (now, half_life) = match direction {
+            PracticeDirection::Forward => {std::mem::swap(&mut info.last_practice, &mut lp); (&info.last_practice, &mut info.half_life)},
+            PracticeDirection::Backward => {std::mem::swap(&mut info.last_practice_reverse, &mut lp); (&info.last_practice_reverse, &mut info.half_life_reverse)}
+        };
 
         match lp {
             Some(time) => {
-                let time_delta = info.last_practice.unwrap() - time;
+                let time_delta = now.unwrap() - time;
                 // > 1 if practiced after expected half-life, < 1 if practiced before
-                let time_factor = time_delta.num_minutes() as f32 / info.half_life;
+                let time_factor = time_delta.num_minutes() as f32 / *half_life;
 
                 // A 0 time factor will result in no change, a 1 time factor will change by a factor of 2
                 let mut multiplier = 1.0 + 1.0 * time_factor;
@@ -252,14 +334,14 @@ impl Knowledge {
                     multiplier = multiplier.recip();
                 }
 
-                info.half_life = f32::max(info.half_life * multiplier, MIN_HALF_LIFE);
+                *half_life = f32::max(*half_life * multiplier, MIN_HALF_LIFE);
             }
             None => {
                 if correct {
                     // Set half-life to two days if user alerady knows word the first time seeing it.
-                    info.half_life = 60.0 * 24.0 * 2.0;
+                    *half_life = 60.0 * 24.0 * 2.0;
                 } else {
-                    info.half_life = MIN_HALF_LIFE;
+                    *half_life = MIN_HALF_LIFE;
                 }
             }
         }
