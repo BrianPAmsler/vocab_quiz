@@ -31,15 +31,15 @@ async function next(result) {
     }
 }
 
-function yes() {
+window.yes = () => {
     next(true);
 }
 
-function no() {
+window.no = () => {
     next(false);
 }
 
-function check() {
+window.check = () => {
     chk.style.display = "none";
     yes_no.style.display = "";
 
@@ -49,10 +49,6 @@ function check() {
         pron.style.display = "";
     }
 }
-
-window.yes = yes;
-window.no = no;
-window.check = check;
 
 async function main() {
     let word = await invoke("get_current_word");
